@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="static/jquery-3.5.1/jquery.min.js"></script>
+  <link href="static/bootstrap-5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <script src="static/bootstrap-5.3.2/js/bootstrap.bundle.min.js"></script>
+  <link href="static/popup.css" rel="stylesheet">
+  <style>
+    .toast-container {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+    .toast {
+      width: auto;
+      font-size: 0.875rem;
+      padding: 0.5rem;
+      white-space: nowrap;
+    }
+    .toast-body {
+      padding: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="myapp">
+    <div class="container p-3">
+      <h5 class="mb-3">自動補卡提醒設定</h5>
+      
+      <div class="mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="reminderSwitch">
+          <label class="form-check-label" for="reminderSwitch">啟用提醒</label>
+        </div>
+      </div>
+
+      <div id="reminderSettings" class="mb-3" style="display: none;">
+        <div class="mb-2">
+          <label class="form-label">提醒時間</label>
+          <div class="d-flex gap-2 align-items-center">
+            <select id="reminderHour" class="form-select form-select-sm" style="width: 80px;">
+              <!-- 小時選項將由 JS 動態生成 -->
+            </select>
+            <span>:</span>
+            <select id="reminderMin" class="form-select form-select-sm" style="width: 80px;">
+              <!-- 分鐘選項將由 JS 動態生成 -->
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">提醒訊息</label>
+          <input type="text" id="reminderMessage" class="form-control form-control-sm" placeholder="請輸入提醒訊息">
+        </div>
+      </div>
+
+      <button id="saveReminder" class="btn btn-primary btn-sm w-100">儲存設定</button>
+    </div>
+
+    <div class="toast-container">
+      <div id="toast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" style="display: none;">
+        <div class="d-flex">
+          <div class="toast-body">
+            設定已儲存
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="static/popup.js"></script>
+</body>
+</html>
