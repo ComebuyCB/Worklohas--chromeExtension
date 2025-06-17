@@ -15,7 +15,6 @@ window.addEventListener('message', (event) => {
   const receivedData = event.data;
   if (receivedData.type === 'SAVE_SELECT_VALUES') {
     chrome.storage.local.set({ autoPunchSettings: receivedData.data.autoPunchSettings }, function() {
-      console.log('Select values saved:', receivedData.data.autoPunchSettings);
     });
   }
 });

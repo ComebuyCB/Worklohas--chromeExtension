@@ -1,7 +1,6 @@
 body {
-  width: 300px;
   padding: 10px;
-  min-width: 400px;
+  min-width: 300px;
   font-family: Arial, sans-serif;
 }
 
@@ -33,4 +32,20 @@ button {
 
 button:hover {
   background-color: #c82333;
+}
+
+.toast-container {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+}
+.toast {
+  width: auto;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  white-space: nowrap;
+}
+.toast-body {
+  padding: 0.25rem;
 }

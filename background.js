@@ -1,87 +1,118 @@
-console.log('BG_ Background script loaded');
-
 // 監聽來自 popup 的訊息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('BG_ Received message:', message);
-  if (message.action === 'updateReminder') {
-    console.log('BG_ Updating reminder with settings:', message.settings);
-    updateReminder(message.settings);
+  if (message.action === 'updateReminders') {
+    updateReminders(message.reminders);
     sendResponse({ status: 'success' });
   }
-  return true; // 保持訊息通道開啟
+  return true;
 });
 
-// 更新提醒設定
-function updateReminder(settings) {
-  console.log('BG_ updateReminder called with:', settings);
-  if (settings.enabled) {
-    setReminder(settings);
-  } else {
-    clearReminder();
-  }
+// 更新多個提醒設定
+function updateReminders(reminders) {
+  const enabledCount = reminders.filter(r => r.enabled).length;
+  console.log(`BG_ 更新提醒，啟用數量: ${enabledCount}`);
+  console.log(`BG_ 收到的提醒設定:`, reminders);
+  
+  clearAllReminders(() => {
+    reminders.forEach((reminder, index) => {
+      if (reminder.enabled) {
+        console.log(`BG_ 準備建立提醒 ID: ${reminder.id}, 時間: ${reminder.hour}:${reminder.min}, 訊息: ${reminder.message}`);
+        setReminder(reminder, reminder.id);
+      }
+    });
+  });
 }
 
 // 設定提醒
-function setReminder(settings) {
-  console.log('BG_ setReminder called with:', settings);
-  clearReminder();
-
+function setReminder(reminder, id) {
   const now = new Date();
   const reminderTime = new Date();
-  reminderTime.setHours(parseInt(settings.hour));
-  reminderTime.setMinutes(parseInt(settings.min));
+  reminderTime.setHours(parseInt(reminder.hour));
+  reminderTime.setMinutes(parseInt(reminder.min));
   reminderTime.setSeconds(0);
   reminderTime.setMilliseconds(0);
 
-  if (reminderTime <= now) {
+  console.log(`BG_ 當前時間: ${now.toLocaleString()}`);
+  console.log(`BG_ 提醒時間設定: ${reminderTime.toLocaleString()}`);
+
+  // 如果今天的時間已過，設定為明天
+  // 比較時需要考慮秒數，避免邊界情況
+  const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const reminderSeconds = parseInt(reminder.hour) * 3600 + parseInt(reminder.min) * 60;
+  
+  if (reminderSeconds <= nowSeconds) {
     reminderTime.setDate(reminderTime.getDate() + 1);
+    console.log(`BG_ 時間已過，設定為明天: ${reminderTime.toLocaleString()}`);
   }
 
-  const delayInMinutes = (reminderTime - now) / 1000 / 60;
-  console.log('BG_ Setting alarm for:', reminderTime, 'delay in minutes:', delayInMinutes);
-
-  chrome.alarms.create('reminder', {
-    delayInMinutes: delayInMinutes,
-    periodInMinutes: 24 * 60
-  }, () => {
+  let delayInMinutes = (reminderTime - now) / 1000 / 60;
+  if (delayInMinutes < 1) {
+    delayInMinutes = 1;
+  }
+  
+  const alarmName = `reminder_${id}`;
+  const alarmInfo = {
+    delayInMinutes: Math.max(1, Math.round(delayInMinutes)),
+    periodInMinutes: 24 * 60  // 每24小時重複
+  };
+  
+  console.log(`BG_ 建立鬧鐘: ${alarmName}, 延遲: ${alarmInfo.delayInMinutes} 分鐘, 週期: ${alarmInfo.periodInMinutes} 分鐘`);
+  console.log(`BG_ 預計觸發時間: ${new Date(now.getTime() + alarmInfo.delayInMinutes * 60 * 1000).toLocaleString()}`);
+  
+  chrome.alarms.create(alarmName, alarmInfo, () => {
     if (chrome.runtime.lastError) {
-      console.error('BG_ Error creating alarm:', chrome.runtime.lastError);
+      console.error(`BG_ 創建鬧鐘失敗:`, chrome.runtime.lastError);
     } else {
-      console.log('BG_ Alarm created successfully');
+      console.log(`BG_ 鬧鐘 ${alarmName} 創建成功`);
     }
   });
 }
 
-// 清除提醒
-function clearReminder() {
-  console.log('BG_ Clearing reminder');
-  chrome.alarms.clear('reminder', (wasCleared) => {
-    console.log('BG_ Reminder cleared:', wasCleared);
+// 清除所有提醒
+function clearAllReminders(callback) {
+  chrome.alarms.getAll((alarms) => {
+    const reminderAlarms = alarms.filter(alarm => alarm.name.startsWith('reminder_'));
+    
+    if (reminderAlarms.length === 0) {
+      if (callback) callback();
+      return;
+    }
+    
+    let clearedCount = 0;
+    reminderAlarms.forEach((alarm) => {
+      chrome.alarms.clear(alarm.name, () => {
+        clearedCount++;
+        if (clearedCount === reminderAlarms.length && callback) {
+          callback();
+        }
+      });
+    });
   });
 }
 
 // 監聽提醒觸發
 chrome.alarms.onAlarm.addListener((alarm) => {
-  console.log('BG_ Alarm triggered:', alarm);
-  if (alarm.name === 'reminder') {
-    chrome.storage.local.get(['reminderSettings'], (result) => {
-      console.log('BG_ Got settings for notification:', result.reminderSettings);
-      if (result.reminderSettings) {
-        const notificationOptions = {
-          type: 'basic',
-          iconUrl: chrome.runtime.getURL('static/icons/icon128.png'),
-          title: '打卡提醒',
-          message: result.reminderSettings.message
-        };
-        console.log('BG_ Creating notification with options:', notificationOptions);
-
-        chrome.notifications.create('reminder-notification', notificationOptions, (notificationId) => {
-          if (chrome.runtime.lastError) {
-            console.error('BG_ Error creating notification:', chrome.runtime.lastError);
-          } else {
-            console.log('BG_ Notification created successfully:', notificationId);
-          }
-        });
+  if (alarm.name.startsWith('reminder_')) {
+    const reminderId = alarm.name.replace('reminder_', '');
+    
+    chrome.storage.local.get(['reminders'], (result) => {
+      if (result.reminders) {
+        const reminder = result.reminders.find(r => r.id === reminderId);
+        
+        if (reminder) {
+          const notificationOptions = {
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('static/icons/icon48.png'),
+            title: '打卡提醒',
+            message: reminder.message || '記得打卡！'
+          };
+          
+          chrome.notifications.create(`reminder-notification-${reminderId}`, notificationOptions, (notificationId) => {
+            if (chrome.runtime.lastError) {
+              console.error('創建通知失敗:', chrome.runtime.lastError);
+            }
+          });
+        }
       }
     });
   }
