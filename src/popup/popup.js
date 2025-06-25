@@ -43,24 +43,22 @@ $(document).ready(function() {
     const triangleColor = getReminderStatusColor(reminder.hour, reminder.min, reminder.enabled);
     
     return `
-      <div class="reminder-item card mb-2" data-index="${index}" data-id="${reminder.id}" style="border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        <div class="card-header d-flex align-items-center py-2 px-3 bg-light position-relative gap-1" style="border-radius: 8px 8px 0 0; border-bottom: 1px solid #e0e0e0;">
-          <div class="reminder-triangle" style="position: absolute; top: 0; left: 0; width: 0; height: 0; border-left: 16px solid ${triangleColor}; border-bottom: 16px solid transparent; border-radius: 8px 0 0 0;"></div>
+      <div class="reminder-item card mb-2 shadow-sm" data-index="${index}" data-id="${reminder.id}">
+        <div class="card-header d-flex align-items-center py-2 px-3 bg-light position-relative gap-1 overflow-hidden">
+          <div class="reminder-triangle" style="border-left: 16px solid ${triangleColor};"></div>
           <input type="text" class="reminder-message form-control form-control-sm border-0 bg-transparent fw-bold" 
-                 placeholder="輸入提醒標題" value="${reminder.message}" 
-                 style="font-size: 14px; padding: 4px; margin-left: -4px;">
-          <button class="btn btn-sm remove-reminder flex-shrink-0" 
-                  style="width: 24px; height: 24px; padding: 0; background: none; border: none; font-size: 12px; opacity: 0.6; transition: opacity 0.2s;"
-                  onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"><i class="fas fa-trash text-danger"></i>
+                 placeholder="輸入提醒標題" value="${reminder.message}">
+          <button class="btn-remove remove-reminder flex-shrink-0" 
+                  type="button"><i class="fas fa-trash text-danger"></i>
           </button>
         </div>
         <div class="card-body py-2 px-3">
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
               <input type="time" class="reminder-time form-control form-control-sm" 
-                     value="${timeValue}" style="width: 120px; font-size: 13px;">
+                     value="${timeValue}" style="width: 120px;">
             </div>
-            <div class="form-check form-switch" style="margin: 0;">
+            <div class="form-check form-switch m-0">
               <input class="form-check-input reminder-enabled ms-0" type="checkbox" ${reminder.enabled ? 'checked' : ''}>
             </div>
           </div>
@@ -114,8 +112,12 @@ $(document).ready(function() {
   function saveReminders(message = '設定已更新') {
     chrome.storage.local.set({ reminders: reminders }, function() {
       chrome.runtime.sendMessage({
-        action: 'updateReminders',
-        reminders: reminders
+        from: 'popup.js',
+        to: 'background.js',
+        type: 'updateReminders',
+        data: {
+          reminders: reminders
+        }
       });
       updateTriangleColors();
       showToastMessage(message);

@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "NUEIP 自動打卡",
+  "name": "CB_測試用擴充功能",
   "version": "1.0",
-  "description": "NUEIP 自動打卡擴充功能",
+  "description": "CB_測試用擴充功能",
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "static/icons/icon16.png",
       "48": "static/icons/icon48.png",
@@ -17,14 +17,18 @@
     "128": "static/icons/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://cloud.nueip.com/attendance_record*"],
+      "matches": [
+        "https://cloud.nueip.com/*",
+        "https://www.youtube.com/*"
+      ],
       "js": [
         "static/jquery-3.5.1/jquery.min.js",
-        "content.js"
+        "src/inject-config/sites.js",
+        "src/content.js"
       ]
     }
   ],
@@ -36,12 +40,16 @@
     "notifications"
   ],
   "host_permissions": [
-    "https://cloud.nueip.com/*"
+    "https://cloud.nueip.com/*",
+    "https://www.youtube.com/*"
   ],
   "web_accessible_resources": [
     {
-      "resources": ["inject/testExtension-inject.js", "inject/testExtension-inject.css"],
-      "matches": ["https://cloud.nueip.com/*"]
+      "resources": ["src/inject/**/*", "src/config/*"],
+      "matches": [
+        "https://cloud.nueip.com/*",
+        "https://www.youtube.com/*"
+      ]
     }
   ]
 }

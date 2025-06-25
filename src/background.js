@@ -1,8 +1,24 @@
-// 監聽來自 popup 的訊息
+// 監聽來自其他組件的訊息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'updateReminders') {
-    updateReminders(message.reminders);
-    sendResponse({ status: 'success' });
+  // 檢查消息格式
+  if (!message.from || !message.to || !message.type) {
+    return true;
+  }
+  
+  // 檢查是否為發送給 background.js 的消息
+  if (message.to !== 'background.js') {
+    return true;
+  }
+  
+  if (message.type === 'updateReminders') {
+    console.log(`${message.from}: updateReminders → @background.js`);
+    updateReminders(message.data.reminders);
+    sendResponse({ 
+      from: 'background.js', 
+      to: message.from, 
+      type: 'RESPONSE', 
+      data: { status: 'success' } 
+    });
   }
   return true;
 });

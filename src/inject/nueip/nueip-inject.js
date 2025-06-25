@@ -7,40 +7,24 @@ $('body').append(`
     <div id="CB_content" style="margin-top: 20px;">
       <div class="input-group" style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">上班時間</label>
-        <div style="display: flex; gap: 5px; align-items: center;">
-          <select id="CB_startHour" style="width: 50px; padding: 5px;">
-            <option value="" default selected hidden>時</option>
-            ${Array.from({length: 13}, (_, i) => `<option value="${(i + 6).toString().padStart(2, '0')}">${(i + 6).toString().padStart(2, '0')}</option>`).join('')}
-          </select>
-          <span>:</span>
-          <select id="CB_startMin" style="width: 50px; padding: 5px;">
-            <option value="" default selected hidden>分</option>
-            ${Array.from({length: 6}, (_, i) => `<option value="${(i * 10).toString().padStart(2, '0')}">${(i * 10).toString().padStart(2, '0')}</option>`).join('')}
-          </select>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="time" id="CB_startTime" value="10:00" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
           <span style="margin-left: 10px;">隨機前</span>
-          <select id="CB_startRandom" style="width: 50px; padding: 5px;">
+          <select id="CB_startRandom" style="width: 60px; padding: 5px;">
             <option value="" default selected hidden>--</option>
-            ${Array.from({length: 13}, (_, i) => `<option value="${i * 5}" ${i === 1 ? 'selected' : ''}>${i * 5}</option>`).join('')}
+            ${Array.from({length: 13}, (_, i) => `<option value="${i * 5}" ${i === 2 ? 'selected' : ''}>${i * 5}</option>`).join('')}
           </select>
           <span>分鐘</span>
         </div>
       </div>
       <div class="input-group" style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">下班時間</label>
-        <div style="display: flex; gap: 5px; align-items: center;">
-          <select id="CB_endHour" style="width: 50px; padding: 5px;">
-            <option value="" default selected hidden>時</option>
-            ${Array.from({length: 13}, (_, i) => `<option value="${(i + 12).toString().padStart(2, '0')}">${(i + 12).toString().padStart(2, '0')}</option>`).join('')}
-          </select>
-          <span>:</span>
-          <select id="CB_endMin" style="width: 50px; padding: 5px;">
-            <option value="" default selected hidden>分</option>
-            ${Array.from({length: 6}, (_, i) => `<option value="${(i * 10).toString().padStart(2, '0')}">${(i * 10).toString().padStart(2, '0')}</option>`).join('')}
-          </select>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="time" id="CB_endTime" value="19:00" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
           <span style="margin-left: 10px;">隨機後</span>
-          <select id="CB_endRandom" style="width: 50px; padding: 5px;">
+          <select id="CB_endRandom" style="width: 60px; padding: 5px;">
             <option value="" default selected hidden>--</option>
-            ${Array.from({length: 13}, (_, i) => `<option value="${i * 5}" ${i === 1 ? 'selected' : ''}>${i * 5}</option>`).join('')}
+            ${Array.from({length: 13}, (_, i) => `<option value="${i * 5}" ${i === 2 ? 'selected' : ''}>${i * 5}</option>`).join('')}
           </select>
           <span>分鐘</span>
         </div>
@@ -74,50 +58,59 @@ $(document).on('click', '#CB_toggle', function() {
 
 // 監聽來自 content.js 的消息
 window.addEventListener('message', (event) => {
-  const receivedData = event.data;
+  const message = event.data;
   if (event.source !== window) return;
-  if (receivedData.type === 'INIT_SELECT_VALUES') {
-    initializeSelectValues(receivedData.data.autoPunchSettings);
+  
+  // 檢查消息格式
+  if (!message.from || !message.to || !message.type) {
+    return;
+  }
+  
+  // 檢查是否為發送給 NUEIP 的消息
+  if (message.to !== 'NUEIP') {
+    return;
+  }
+  
+  if (message.type === 'INIT_SELECT_VALUES') {
+    console.log('content.js: INIT_SELECT_VALUES → @NUEIP');
+    initializeSelectValues(message.data.autoPunchSettings);
   }
 });
 
-// 初始化 <select> 值
+// 初始化時間輸入值
 function initializeSelectValues(values) {
   console.log('initializeSelectValues', values);
   if (values) {
-    $('#CB_startHour').val(values.startHour);
-    $('#CB_startMin').val(values.startMin);
-    $('#CB_endHour').val(values.endHour);
-    $('#CB_endMin').val(values.endMin);
-    $('#CB_startRandom').val(values.startRandom);
-    $('#CB_endRandom').val(values.endRandom);
+    // 設定時間輸入框，如果有儲存的值則使用，否則使用預設值
+    if (values.startTime) {
+      $('#CB_startTime').val(values.startTime);
+    }
+    if (values.endTime) {
+      $('#CB_endTime').val(values.endTime);
+    }
+    $('#CB_startRandom').val(values.startRandom || '10');
+    $('#CB_endRandom').val(values.endRandom || '10');
   }
 }
 
 var CB_selectValues = {
-  startHour: '',
-  startMin: '',
-  endHour: '',
-  endMin: '',
-  startRandom: '',
-  endRandom: ''
+  startTime: '10:00',
+  endTime: '19:00',
+  startRandom: '10',
+  endRandom: '10'
 }
 
 // 監聽按鈕點擊
 $(document).on('click', '#CB_btn', function() {
   const autoPunchSettings = {
-    startHour: $('#CB_startHour').val(),
-    startMin: $('#CB_startMin').val(),
-    endHour: $('#CB_endHour').val(),
-    endMin: $('#CB_endMin').val(),
+    startTime: $('#CB_startTime').val(),
+    endTime: $('#CB_endTime').val(),
     startRandom: $('#CB_startRandom').val(),
     endRandom: $('#CB_endRandom').val()
   };
 
-  if ( autoPunchSettings.startHour === '' || 
-    autoPunchSettings.startMin === '' || 
-    autoPunchSettings.endHour === '' || 
-    autoPunchSettings.endMin === '' || 
+  if ( autoPunchSettings.startTime === '' || 
+    autoPunchSettings.endTime === '' || 
     autoPunchSettings.startRandom === '' || 
     autoPunchSettings.endRandom === '' ){
     alert('請先設定完整');
@@ -126,7 +119,10 @@ $(document).on('click', '#CB_btn', function() {
 
   CB_selectValues = autoPunchSettings;
 
+  console.log('@NUEIP → content.js: SAVE_SELECT_VALUES');
   window.postMessage({ // 發送消息給 content.js
+    from: 'NUEIP',
+    to: 'content.js',
     type: 'SAVE_SELECT_VALUES',
     data: {
       autoPunchSettings: autoPunchSettings
@@ -143,8 +139,6 @@ function autoCheckIn(){
   const U_SN = $TR.children('td').eq(0).attr('class').split(' ').find((val)=>(/sn\d\d\d\d\d\d/g).test(val))?.replace('sn','');
   
   const ajaxArray = [];
-  const select_startTime = CB_selectValues.startHour + ':' + CB_selectValues.startMin + ':00';
-  const select_endTime = CB_selectValues.endHour + ':' + CB_selectValues.endMin + ':00';
 
   $.each($TR, function(trIdx, trVal){
     /*=== 檢查日期，未來或休假 ===*/
@@ -156,33 +150,31 @@ function autoCheckIn(){
     }
 
     /*=== 時間打卡，上班和下班 ===*/
-    let startTime = $.trim($(trVal).children('td[data-th="上班"]')?.text());
-    let endTime = $.trim($(trVal).children('td[data-th="下班"]')?.text());
+    let th_startTime = $.trim($(trVal).children('td[data-th="上班"]')?.text());
+    let th_endTime = $.trim($(trVal).children('td[data-th="下班"]')?.text());
 
-    const { startHour, startMin, startRandom, endHour, endMin, endRandom } = CB_selectValues;
+    const { startTime: targetStartTime, endTime: targetEndTime, startRandom, endRandom } = CB_selectValues;
 
-    if (startTime.length === 0){ // 補卡 (上班)
-      let {hour, min} = getRdHourMin(startHour, startMin, startRandom, "上班");
+    if (th_startTime.length === 0){ // 補卡 (上班)
+      let {hour, min} = getRdHourMin(targetStartTime, startRandom, "上班");
       let postData = { section: 1, hour, min, remark: '補卡', u_sn: U_SN, date: TR_date, apply_date: TR_date, }
-      console.log(postData);
       ajaxArray.push( promiseAjax(postData) );
     }
 
-    if (endTime.length === 0){ // 補卡 (下班)
-      let {hour, min} = getRdHourMin(endHour, endMin, endRandom, "下班");
+    if (th_endTime.length === 0){ // 補卡 (下班)
+      let {hour, min} = getRdHourMin(targetEndTime, endRandom, "下班");
       let postData = { section: 2, hour, min, remark: '補卡', u_sn: U_SN, date: TR_date, apply_date: TR_date, }
-      console.log(postData);
       ajaxArray.push( promiseAjax(postData) );
     }
   });
 
   // 執行所有補卡請求
   if (ajaxArray.length > 0) {
-    Promise.all(ajaxArray.map(fn => fn())).then((res)=>{
+    executeAjaxSequentially(ajaxArray).then((res)=>{
       console.log(res);
       let successVals = res.filter((e)=> e?.code === 200);
       alert('自動打卡完畢! '+ '共'+ successVals.length +'筆。');
-      // window.location.reload();
+      window.location.reload();
     });
   } else {
     alert('沒有需要補卡的記錄');
@@ -190,14 +182,16 @@ function autoCheckIn(){
 }
 
 // 獲取隨機時間
-function getRdHourMin(hours, minutes, randomMins, type) {
-  const totalMinutes = +hours * 60 + +minutes;
+function getRdHourMin(timeString, randomMins, type) {
+  // 將 HH:MM 格式轉換為小時和分鐘
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
 
   // 計算隨機範圍
   let randomMinutes;
   if (type === "上班") {
     // 上班時間：在目標時間之前的隨機分鐘
-    randomMinutes = Math.floor(Math.random() * randomMins);
+    randomMinutes = Math.floor(Math.random() * parseInt(randomMins));
     const newTotalMinutes = totalMinutes - randomMinutes;
     const newHours = Math.floor(newTotalMinutes / 60);
     const newMinutes = newTotalMinutes % 60;
@@ -207,7 +201,7 @@ function getRdHourMin(hours, minutes, randomMins, type) {
     };
   } else {
     // 下班時間：在目標時間之後的隨機分鐘
-    randomMinutes = Math.floor(Math.random() * randomMins);
+    randomMinutes = Math.floor(Math.random() * parseInt(randomMins));
     const newTotalMinutes = totalMinutes + randomMinutes;
     const newHours = Math.floor(newTotalMinutes / 60);
     const newMinutes = newTotalMinutes % 60;
@@ -237,9 +231,24 @@ function promiseAjax(data){
   }
 }
 
-
+// 依序執行 Ajax 請求
+async function executeAjaxSequentially(ajaxArray) {
+  const results = [];
+  for (let i = 0; i < ajaxArray.length; i++) {
+    console.log(`執行第 ${i + 1} 個補卡請求，共 ${ajaxArray.length} 個`);
+    try {
+      const result = await ajaxArray[i]();
+      results.push(result);
+    } catch (error) {
+      console.error(`第 ${i + 1} 個請求失敗:`, error);
+      results.push(error);
+    }
+  }
+  return results;
+}
 
 // 他們的程式，抓取查詢的結果，在此覆蓋他們網站的fn。 loadingData("attendance")
+loadingData("attendance")
 function loadingData(t, e) {
   var a, n = $('select[name="work_status"]').val() || "1,4",
       o = ".tab-content",

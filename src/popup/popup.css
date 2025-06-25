@@ -1,0 +1,49 @@
+body {
+  padding: 12px;
+  min-width: 280px;
+  font-family: Arial, sans-serif;
+}
+
+/* 專用樣式 - 三角形指示器 */
+.reminder-triangle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 16px solid transparent;
+}
+
+/* 專用樣式 - 圓形按鈕 */
+.btn-circle {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 專用樣式 - 刪除按鈕 */
+.btn-remove {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none !important;
+  border: none !important;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.btn-remove:hover {
+  opacity: 1 !important;
+}
+
+/* Toast 容器 */
+.toast-container-fixed {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+}
