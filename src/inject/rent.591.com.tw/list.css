@@ -1,0 +1,179 @@
+/*=== 591租屋網列表頁面樣式 ===*/
+
+/* 591租屋助手浮動面板樣式 */
+#rent591-panel {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 280px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #00b894;
+  border-radius: 10px;
+  font-family: 'Microsoft JhengHei', Arial, sans-serif;
+  font-size: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+#rent591-panel.minimized .rent591-content {
+  display: none;
+}
+
+.rent591-header {
+  background: linear-gradient(135deg, #00b894, #00a085);
+  color: white;
+  padding: 12px 15px;
+  border-radius: 8px 8px 0 0;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+}
+
+.rent591-header i {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.rent591-minimize {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.rent591-minimize:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.rent591-content {
+  padding: 15px;
+}
+
+.rent591-feature {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(0, 184, 148, 0.05);
+  border-radius: 5px;
+  border-left: 3px solid #00b894;
+}
+
+.rent591-feature label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: #2d3436;
+}
+
+.rent591-feature input[type="checkbox"] {
+  margin-right: 8px;
+  transform: scale(1.1);
+  accent-color: #00b894;
+}
+
+.rent591-status {
+  margin-top: 15px;
+  padding: 8px;
+  background: rgba(0, 184, 148, 0.1);
+  border-radius: 5px;
+  font-size: 11px;
+  color: #00b894;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 資料表格增強樣式 */
+#extracted-table-container {
+  margin: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+#extracted-table-container h2 {
+  color: #00b894;
+  border-bottom: 2px solid #00b894;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+#rental-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 20px;
+  font-family: 'Microsoft JhengHei', Arial, sans-serif;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+#rental-table th {
+  background: linear-gradient(135deg, #00b894, #00a085);
+  color: white;
+  padding: 12px 8px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+#rental-table th:hover {
+  background: linear-gradient(135deg, #00a085, #008f73);
+}
+
+#rental-table td {
+  border: 1px solid #ddd;
+  padding: 10px 8px;
+  text-align: left;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+#rental-table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+#rental-table tr:hover {
+  background-color: rgba(0, 184, 148, 0.05);
+}
+
+#rental-table a {
+  color: #00b894;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+#rental-table a:hover {
+  text-decoration: underline;
+  color: #00a085;
+}
+
+.sort-indicator {
+  float: right;
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+.sort-asc::after {
+  content: " ▲";
+  color: #fff;
+  opacity: 1;
+}
+
+.sort-desc::after {
+  content: " ▼";
+  color: #fff;
+  opacity: 1;
+}

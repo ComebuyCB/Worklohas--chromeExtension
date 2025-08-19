@@ -34,8 +34,8 @@ window.addEventListener('message', (event) => {
     return;
   }
   
-  if (message.type === 'INIT_YOUTUBE') {
-    console.log('content.js: INIT_YOUTUBE → @YOUTUBE');
+  if (message.type === 'INIT_YOUTUBE_WATCH') {
+    console.log('content.js: INIT_YOUTUBE_WATCH → @YOUTUBE');
     initYouTube();
   }
 });
@@ -43,6 +43,35 @@ window.addEventListener('message', (event) => {
 // 如果頁面已經載入完成，直接初始化
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
   initYouTube();
+  setInterval(_skipAds, 10);
 } else {
   document.addEventListener('DOMContentLoaded', initYouTube);
+}
+
+
+function _skipAds(){
+	console.log('===偵測廣告中===');
+	
+	// Skip廣告
+	let adSkip = document.querySelector('.ytp-ad-skip-button-modern');
+	if (adSkip) {
+		adSkip.click();
+		console.log('關閉 Skip廣告!');
+	}
+	
+	// 彈窗廣告
+	let adBox = document.querySelector('.ytp-ad-overlay-close-button');
+	if (adBox) {
+		adBox.click();
+		console.log('關閉 彈窗廣告!');
+	}
+	
+	// 倒數廣告
+	let video = document.querySelector('.html5-main-video');
+	let adShowing = document.querySelector('.ad-showing');
+	
+	if (adShowing && video && video.currentTime < video.duration - 0.01) {
+		video.currentTime = video.duration - 0.01;
+		console.log('關閉 倒數廣告!');
+	}
 }

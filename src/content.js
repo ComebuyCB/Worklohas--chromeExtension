@@ -6,19 +6,35 @@ function getCurrentSiteConfig() {
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
   
-  const config = SITE_CONFIGS[hostname];
-  if (!config) {
+  const siteConfig = SITE_CONFIGS[hostname];
+  if (!siteConfig) {
     return null;
   }
 
-  const matchesPattern = config.urlPatterns.some(pattern => pathname.includes(pattern) );
+  // 處理陣列格式的配置（支援多個 URL 模式）
+  if (Array.isArray(siteConfig)) {
+    for (const config of siteConfig) {
+      const matchesPattern = config.urlPatterns.some(pattern => pathname.includes(pattern));
+      if (matchesPattern) {
+        console.log(`CB_Content: 找到網站配置: `, config);
+        return {
+          ...config,
+          hostname
+        };
+      }
+    }
+    return null;
+  }
+
+  // 處理單一配置格式（向後相容）
+  const matchesPattern = siteConfig.urlPatterns.some(pattern => pathname.includes(pattern));
   if (!matchesPattern) {
     return null;
   }
 
-  console.log(`CB_Content: 找到網站配置: `, config);
+  console.log(`CB_Content: 找到網站配置: `, siteConfig);
   return {
-    ...config,
+    ...siteConfig,
     hostname
   };
 }
@@ -104,27 +120,60 @@ function injectScript(config) {
       if (index === config.inject.scripts.length - 1) {
         script.onload = function() {
           
-          // 根據網站類型發送不同的初始化消息
+          // 根據網站類型和 URL 模式發送不同的初始化消息
           if (config.hostname === 'cloud.nueip.com') {
-            // NUEIP 需要載入儲存的設定
-            chrome.storage.local.get(['autoPunchSettings'], (result) => {
-              console.log('@content.js → NUEIP: INIT_SELECT_VALUES');
+            if (config.initMessage === 'INIT_SELECT_VALUES') {
+              // NUEIP 出勤頁面需要載入儲存的設定
+              chrome.storage.local.get(['autoPunchSettings'], (result) => {
+                console.log('@content.js → NUEIP: INIT_SELECT_VALUES');
+                window.postMessage({
+                  from: 'content.js',
+                  to: 'NUEIP',
+                  type: 'INIT_SELECT_VALUES',
+                  data: {
+                    autoPunchSettings: result.autoPunchSettings
+                  }
+                }, '*');
+              });
+            } else if (config.initMessage === 'INIT_LOGIN') {
+              // NUEIP 登入頁面
+              console.log('@content.js → NUEIP: INIT_LOGIN');
               window.postMessage({
                 from: 'content.js',
                 to: 'NUEIP',
-                type: 'INIT_SELECT_VALUES',
-                data: {
-                  autoPunchSettings: result.autoPunchSettings
-                }
+                type: 'INIT_LOGIN',
+                data: {}
               }, '*');
-            });
+            }
+          } else if (config.hostname === 'www.youtube.com') {
+            if (config.initMessage === 'INIT_YOUTUBE_WATCH') {
+              // YouTube 觀看頁面
+              console.log('@content.js → YOUTUBE: INIT_YOUTUBE_WATCH');
+              window.postMessage({
+                from: 'content.js',
+                to: 'YOUTUBE',
+                type: 'INIT_YOUTUBE_WATCH',
+                data: {}
+              }, '*');
+            }
+          } else if (config.hostname === 'rent.591.com.tw') {
+            if (config.initMessage === 'INIT_RENT_LIST') {
+              // 591 租屋網列表頁面
+              console.log('@content.js → RENT591: INIT_RENT_LIST');
+              window.postMessage({
+                from: 'content.js',
+                to: 'RENT591',
+                type: 'INIT_RENT_LIST',
+                data: {}
+              }, '*');
+            }
           } else {
-            // YouTube 發送簡單初始化消息
-            console.log('@content.js → YOUTUBE: INIT_YOUTUBE');
+            // 其他網站的通用初始化
+            console.log(`@content.js → ${config.name}: ${config.initMessage}`);
             window.postMessage({
               from: 'content.js',
-              to: 'YOUTUBE',
-              type: 'INIT_YOUTUBE',
+              to: config.name,
+              type: config.initMessage,
               data: {}
             }, '*');
           }
