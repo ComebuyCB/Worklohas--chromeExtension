@@ -1,23 +1,2 @@
-/*=== NUEIP 登入頁面樣式 ===*/
-
-/* 登入頁面輔助功能樣式 */
-.nueip-login-helper {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 10px;
-  border-radius: 5px;
-  font-size: 12px;
-  z-index: 9999;
-}
-
-/* 記住帳號提示樣式 */
-.nueip-remember-hint {
-  margin-top: 10px;
-  padding: 5px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  font-size: 11px;
-}
+.nueip-login-helper { position: fixed; top: 20px; right: 20px; background: rgba(0, 0, 0, 0.8); color: white; padding: 10px; border-radius: 5px; font-size: 12px; z-index: 9999; }
+.nueip-remember-hint { margin-top: 10px; padding: 5px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; font-size: 11px; }

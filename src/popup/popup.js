@@ -1,18 +1,71 @@
-$(document).ready(function() {
-  let reminders = [
-    { id: generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' }
-  ];
+$(document).ready(() => {
+  window.reminderManager = new ReminderManager();
+  
+  // 綁定複製按鈕事件
+  $('button[data-copy]').on('click', function() {
+    const textToCopy = $(this).data('copy');
+    copyContext(textToCopy);
+  });
+});
 
-  // 生成唯一 ID
-  function generateId() {
+async function copyContext(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      showToast('已複製!');
+    } else {
+      // 備用方案：創建隱藏的 textarea 元素
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      if (document.execCommand('copy')) {
+        showToast('已複製!');
+      } else {
+        showToast('複製失敗');
+      }
+      document.body.removeChild(textArea);
+    }
+  } catch (err) {
+    console.error('複製失敗:', err);
+    showToast('複製失敗');
+  }
+}
+
+function showToast(message = '設定已儲存') {
+  $('#toast .toast-body').text(message);
+  $('#toast').show();
+  setTimeout(() => {
+    $('#toast').hide();
+  }, 1500);
+}
+
+class ReminderManager {
+  constructor() {
+    this.reminders = [
+      { id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' }
+    ];
+    this.updateColorInterval = null;
+    this.init();
+  }
+
+  async init() {
+    await this.loadReminders();
+    this.bindEvents();
+    this.startColorUpdateInterval();
+  }
+
+  generateId() {
     return Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 
-
-  // 計算提醒狀態顏色
-  function getReminderStatusColor(hour, min, enabled) {
+  getReminderStatusColor(hour, min, enabled) {
     if (!enabled) return 'transparent';
-    
+
     const now = new Date();
     const reminderTime = new Date();
     reminderTime.setHours(parseInt(hour));
@@ -20,7 +73,6 @@ $(document).ready(function() {
     reminderTime.setSeconds(0);
     reminderTime.setMilliseconds(0);
 
-    // 如果今天的時間已過，設定為明天
     if (reminderTime <= now) {
       reminderTime.setDate(reminderTime.getDate() + 1);
     }
@@ -29,34 +81,31 @@ $(document).ready(function() {
     const hoursDiff = timeDiff / (1000 * 60 * 60);
 
     if (hoursDiff <= 1) {
-      return '#dc3545'; // 紅色 - 1小時內
+      return '#dc3545'; 
     } else if (hoursDiff <= 4) {
-      return '#fd7e14'; // 橘色 - 4小時內
+      return '#fd7e14';
     } else {
-      return '#198754'; // 綠色 - 4小時外
+      return '#198754';
     }
   }
 
-  // 生成提醒項目 HTML
-  function createReminderItem(index, reminder = { id: generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' }) {
+  createReminderItem(index, reminder = { id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' }) {
     const timeValue = `${reminder.hour}:${reminder.min}`;
-    const triangleColor = getReminderStatusColor(reminder.hour, reminder.min, reminder.enabled);
-    
+    const triangleColor = this.getReminderStatusColor(reminder.hour, reminder.min, reminder.enabled);
+
     return `
       <div class="reminder-item card mb-2 shadow-sm" data-index="${index}" data-id="${reminder.id}">
         <div class="card-header d-flex align-items-center py-2 px-3 bg-light position-relative gap-1 overflow-hidden">
           <div class="reminder-triangle" style="border-left: 16px solid ${triangleColor};"></div>
-          <input type="text" class="reminder-message form-control form-control-sm border-0 bg-transparent fw-bold" 
-                 placeholder="輸入提醒標題" value="${reminder.message}">
-          <button class="btn-remove remove-reminder flex-shrink-0" 
-                  type="button"><i class="fas fa-trash text-danger"></i>
+          <input type="text" class="reminder-message form-control form-control-sm border-0 bg-transparent fw-bold"  placeholder="輸入提醒標題" value="${reminder.message}">
+          <button class="btn-remove remove-reminder flex-shrink-0" type="button">
+            <i class="fas fa-trash text-danger"></i>
           </button>
         </div>
         <div class="card-body py-2 px-3">
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
-              <input type="time" class="reminder-time form-control form-control-sm" 
-                     value="${timeValue}" style="width: 120px;">
+              <input type="time" class="reminder-time form-control form-control-sm" value="${timeValue}" style="width: 120px;">
             </div>
             <div class="form-check form-switch m-0">
               <input class="form-check-input reminder-enabled ms-0" type="checkbox" ${reminder.enabled ? 'checked' : ''}>
@@ -67,138 +116,145 @@ $(document).ready(function() {
     `;
   }
 
-  // 渲染所有提醒項目
-  function renderReminders() {
+  renderReminders() {
     const container = $('#remindersContainer');
     container.empty();
     
-    reminders.forEach((reminder, index) => {
-      container.append(createReminderItem(index, reminder));
+    this.reminders.forEach((reminder, index) => {
+      container.append(this.createReminderItem(index, reminder));
     });
     
-    // 如果沒有提醒項目，至少顯示一個
-    if (reminders.length === 0) {
-      reminders.push({ id: generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' });
-      container.append(createReminderItem(0, reminders[0]));
+    if (this.reminders.length === 0) {
+      this.reminders.push({ id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' });
+      container.append(this.createReminderItem(0, this.reminders[0]));
     }
   }
 
-  // 載入設定並初始化 UI
-  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    chrome.storage.local.get(['reminders'], (result) => {
-      if (result.reminders && result.reminders.length > 0) {
-        reminders = result.reminders;
-      }
-      
-      // 渲染提醒項目
-      renderReminders();
+  loadReminders() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, () => {
+        chrome.storage.local.get(['reminders'], (result) => {
+          if (result.reminders && result.reminders.length > 0) {
+            this.reminders = result.reminders;
+          }
+          this.renderReminders();
+          resolve();
+        });
+      });
     });
-  });
+  }
 
-  // 更新三角形顏色
-  function updateTriangleColors() {
-    $('.reminder-item').each(function() {
-      const $item = $(this);
-      const index = parseInt($item.data('index'));
-      const reminder = reminders[index];
+  updateTriangleColors() {
+    $('.reminder-item').each((index, element) => {
+      const $item = $(element);
+      const dataIndex = parseInt($item.data('index'));
+      const reminder = this.reminders[dataIndex];
       if (reminder) {
-        const triangleColor = getReminderStatusColor(reminder.hour, reminder.min, reminder.enabled);
+        const triangleColor = this.getReminderStatusColor(reminder.hour, reminder.min, reminder.enabled);
         $item.find('.reminder-triangle').css('border-left-color', triangleColor);
       }
     });
   }
 
-  // 自動儲存功能
-  function saveReminders(message = '設定已更新') {
-    chrome.storage.local.set({ reminders: reminders }, function() {
+  saveReminders(message = '設定已更新') {
+    chrome.storage.local.set({ reminders: this.reminders }, () => {
       chrome.runtime.sendMessage({
         from: 'popup.js',
         to: 'background.js',
         type: 'updateReminders',
         data: {
-          reminders: reminders
+          reminders: this.reminders
         }
       });
-      updateTriangleColors();
-      showToastMessage(message);
+      this.updateTriangleColors();
+      showToast(message);
     });
   }
 
-  // 新增提醒按鈕事件
-  $(document).on('click', '#addReminder', function() {
-    reminders.push({ id: generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' });
-    renderReminders();
-    saveReminders('新增提醒成功');
-  });
-
-  // 刪除提醒按鈕事件
-  $(document).on('click', '.remove-reminder', function() {
-    if (reminders.length > 1) {
-      const id = $(this).closest('.reminder-item').data('id');
-      const index = reminders.findIndex(r => r.id === id);
-      if (index !== -1) {
-        reminders.splice(index, 1);
-        renderReminders();
-        saveReminders('刪除提醒成功');
-      }
-    }
-  });
-
-  // 啟用狀態變更事件
-  $(document).on('change', '.reminder-enabled', function() {
-    const reminderItem = $(this).closest('.reminder-item');
-    const index = parseInt(reminderItem.data('index'));
-    const enabled = $(this).prop('checked');
-    
-    reminders[index].enabled = enabled;
-    saveReminders();
-  });
-
-  // 時間選擇變更事件
-  $(document).on('change', '.reminder-time', function() {
-    const reminderItem = $(this).closest('.reminder-item');
-    const index = parseInt(reminderItem.data('index'));
-    const timeValue = $(this).val();
-    const [hour, min] = timeValue.split(':');
-    
-    reminders[index].hour = hour;
-    reminders[index].min = min;
-    saveReminders();
-  });
-
-  // 訊息輸入變更事件 - 只在失焦或按Enter時儲存
-  $(document).on('blur', '.reminder-message', function() {
-    const reminderItem = $(this).closest('.reminder-item');
-    const index = parseInt(reminderItem.data('index'));
-    const message = $(this).val();
-    
-    if (reminders[index].message !== message) {
-      reminders[index].message = message;
-      saveReminders();
-    }
-  });
-
-  // 訊息輸入按Enter時儲存
-  $(document).on('keydown', '.reminder-message', function(e) {
-    if (e.key === 'Enter') {
-      $(this).blur(); // 觸發 blur 事件來儲存
-    }
-  });
-
-  // 顯示 Toast 訊息
-  function showToastMessage(message = '設定已儲存') {
-    $('#toast .toast-body').text(message);
-    $('#toast').show();
-    setTimeout(() => {
-      $('#toast').hide();
-    }, 1500);
+  addReminder() {
+    this.reminders.push({ id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' });
+    this.renderReminders();
+    this.saveReminders('新增提醒成功');
   }
 
-  // 關閉 Toast
-  $('.btn-close').click(function() {
-    $('#toast').hide();
-  });
+  removeReminder(id) {
+    if (this.reminders.length > 1) {
+      const index = this.reminders.findIndex(r => r.id === id);
+      if (index !== -1) {
+        this.reminders.splice(index, 1);
+        this.renderReminders();
+        this.saveReminders('刪除提醒成功');
+      }
+    }
+  }
 
-  // 每分鐘更新一次三角形顏色
-  setInterval(updateTriangleColors, 60000);
-});
+
+  bindEvents() {
+    $(document).on('click', '#addReminder', () => {
+      this.addReminder();
+    });
+
+    $(document).on('click', '.remove-reminder', (e) => {
+      const id = $(e.currentTarget).closest('.reminder-item').data('id');
+      this.removeReminder(id);
+    });
+
+    $(document).on('change', '.reminder-enabled', (e) => {
+      const index = parseInt($(e.currentTarget).closest('.reminder-item').data('index'));
+      if (this.reminders[index]) {
+        this.reminders[index].enabled = $(e.currentTarget).prop('checked');
+        this.saveReminders();
+      }
+    });
+
+    $(document).on('change', '.reminder-time', (e) => {
+      const index = parseInt($(e.currentTarget).closest('.reminder-item').data('index'));
+      const [hour, min] = $(e.currentTarget).val().split(':');
+      if (this.reminders[index]) {
+        this.reminders[index].hour = hour;
+        this.reminders[index].min = min;
+        this.saveReminders();
+      }
+    });
+
+    $(document).on('blur', '.reminder-message', (e) => {
+      const index = parseInt($(e.currentTarget).closest('.reminder-item').data('index'));
+      const message = $(e.currentTarget).val();
+      if (this.reminders[index] && this.reminders[index].message !== message) {
+        this.reminders[index].message = message;
+        this.saveReminders();
+      }
+    });
+
+    $(document).on('keydown', '.reminder-message', (e) => {
+      if (e.key === 'Enter') {
+        $(e.currentTarget).blur();
+      }
+    });
+
+    $('.btn-close').click(() => {
+      $('#toast').hide();
+    });
+  }
+
+  startColorUpdateInterval() {
+    if (this.updateColorInterval) {
+      clearInterval(this.updateColorInterval);
+    }
+    this.updateColorInterval = setInterval(() => {
+      this.updateTriangleColors();
+    }, 60000);
+  }
+
+  stopColorUpdateInterval() {
+    if (this.updateColorInterval) {
+      clearInterval(this.updateColorInterval);
+      this.updateColorInterval = null;
+    }
+  }
+
+  destroy() {
+    this.stopColorUpdateInterval();
+    $(document).off('.reminderManager');
+  }
+}

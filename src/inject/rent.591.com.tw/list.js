@@ -107,43 +107,30 @@ function extractRentalData() {
 }
 
 function createSortableTable(data) {
-    // Create table container if it doesn't exist
-    let container = document.getElementById('extracted-table-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'extracted-table-container';
-        document.body.appendChild(container);
+    // Create fullscreen overlay if it doesn't exist
+    let overlay = document.getElementById('rental-fullscreen-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'rental-fullscreen-overlay';
+        document.body.appendChild(overlay);
     }
     
     let html = `
-    <style>
-        #rental-table { border-collapse: collapse; width: 100%; margin-top: 20px; font-family: Arial, sans-serif; }
-        #rental-table th, #rental-table td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-        #rental-table th { background-color: #f2f2f2; cursor: pointer; user-select: none; }
-        #rental-table th:hover { background-color: #e6e6e6; }
-        #rental-table tr:nth-child(even) { background-color: #f9f9f9; }
-        #rental-table tr:hover { background-color: #f5f5f5; }
-        #rental-table a { color: #007bff; text-decoration: none; }
-        #rental-table a:hover { text-decoration: underline; }
-        .sort-indicator { float: right; opacity: 0.3; }
-        .sort-asc::after { content: " ▲"; }
-        .sort-desc::after { content: " ▼"; }
-        #extract-btn:hover { background-color: #0056b3; }
-    </style>
-    
-    <h2>租房資料表格 (點擊表頭排序) - 共 ${data.length} 筆</h2>
-    <table id="rental-table">
-        <thead>
-            <tr>
-                <th onclick="sortTable(0)">標題 <span class="sort-indicator"></span></th>
-                <th onclick="sortTable(1)">捷運資訊 <span class="sort-indicator"></span></th>
-                <th onclick="sortTable(2)">距離(公尺) <span class="sort-indicator"></span></th>
-                <th onclick="sortTable(3)">房型 <span class="sort-indicator"></span></th>
-                <th onclick="sortTable(4)">屋主 <span class="sort-indicator"></span></th>
-                <th onclick="sortTable(5)">價格 <span class="sort-indicator"></span></th>
-            </tr>
-        </thead>
-        <tbody>`;
+    <div id="rental-fullscreen-content">
+        <button id="rental-fullscreen-close">×</button>
+        <h2>租房資料表格 (點擊表頭排序) - 共 ${data.length} 筆</h2>
+        <table id="rental-table-inline">
+            <thead>
+                <tr>
+                    <th data-column="0">標題 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="1">捷運資訊 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="2">距離(公尺) <span class="sort-indicator-inline"></span></th>
+                    <th data-column="3">房型 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="4">屋主 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="5">價格 <span class="sort-indicator-inline"></span></th>
+                </tr>
+            </thead>
+            <tbody>`;
     
     data.forEach(item => {
         html += `
@@ -158,16 +145,48 @@ function createSortableTable(data) {
     });
     
     html += `
-        </tbody>
-    </table>`;
+            </tbody>
+        </table>
+    </div>`;
     
-    container.innerHTML = html;
+    overlay.innerHTML = html;
+    
+    // Add table header click events for sorting
+    const headers = overlay.querySelectorAll('th[data-column]');
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const columnIndex = parseInt(this.getAttribute('data-column'));
+            sortTable(columnIndex);
+        });
+    });
+    
+    // Add close button event
+    const closeBtn = overlay.querySelector('#rental-fullscreen-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            overlay.style.display = 'none';
+        });
+    }
+    
+    // Add overlay click to close
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            overlay.style.display = 'none';
+        }
+    });
+    
+    // Add ESC key to close
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay.style.display === 'block') {
+            overlay.style.display = 'none';
+        }
+    });
 }
 
 let sortDirection = {};
 
 function sortTable(columnIndex) {
-    const table = document.getElementById('rental-table');
+    const table = document.getElementById('rental-table-inline');
     const tbody = table.getElementsByTagName('tbody')[0];
     const rows = Array.from(tbody.getElementsByTagName('tr'));
     
@@ -181,11 +200,11 @@ function sortTable(columnIndex) {
     // Clear previous sort indicators
     const headers = table.getElementsByTagName('th');
     for (let i = 0; i < headers.length; i++) {
-        headers[i].classList.remove('sort-asc', 'sort-desc');
+        headers[i].classList.remove('sort-asc-inline', 'sort-desc-inline');
     }
     
     // Add current sort indicator
-    headers[columnIndex].classList.add(sortDirection[columnIndex] === 'asc' ? 'sort-asc' : 'sort-desc');
+    headers[columnIndex].classList.add(sortDirection[columnIndex] === 'asc' ? 'sort-asc-inline' : 'sort-desc-inline');
     
     // Sort rows
     rows.sort((a, b) => {
@@ -217,28 +236,18 @@ function createExtractButton() {
     const extractBtn = document.createElement('button');
     extractBtn.id = 'extract-btn';
     extractBtn.textContent = '解析租房資料';
-    extractBtn.style.cssText = 'position: fixed; bottom: 20px; left: 20px; z-index: 1000; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;';
-    
-    // Add hover effect
-    extractBtn.addEventListener('mouseenter', function() {
-        this.style.backgroundColor = '#0056b3';
-    });
-    extractBtn.addEventListener('mouseleave', function() {
-        this.style.backgroundColor = '#007bff';
-    });
     
     // Add click event
     extractBtn.addEventListener('click', function() {
+        // Extract data and show fullscreen table
         const data = extractRentalData();
         createSortableTable(data);
         console.log('提取了', data.length, '筆資料');
         
-        // Scroll to table
-        const container = document.getElementById('extracted-table-container');
-        if (container) {
-            container.scrollIntoView({ 
-                behavior: 'smooth' 
-            });
+        // Show overlay
+        const overlayElement = document.getElementById('rental-fullscreen-overlay');
+        if (overlayElement) {
+            overlayElement.style.display = 'block';
         }
     });
     

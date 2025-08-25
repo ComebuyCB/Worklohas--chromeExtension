@@ -1,14 +1,14 @@
 // 添加時間設定介面
 $('body').append(`
-  <div id="CB_fixed" style="position: fixed; bottom: 0; left: 0; z-index: 9999; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-    <div style="position: absolute; top: -15px; right: -15px; cursor: pointer; background: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.2);" id="CB_toggle">
+  <div id="CB_fixed">
+    <div id="CB_toggle">
       <i class="fa fa-chevron-up"></i>
     </div>
     <div id="CB_content" style="margin-top: 20px;">
-      <div class="input-group" style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">上班時間</label>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <input type="time" id="CB_startTime" value="10:00" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+      <div class="cb-input-group">
+        <label class="cb-input-label">上班時間</label>
+        <div class="cb-input-row">
+          <input type="time" id="CB_startTime" value="10:00" class="cb-time-input">
           <span style="margin-left: 10px;">隨機前</span>
           <select id="CB_startRandom" style="width: 60px; padding: 5px;">
             <option value="" default selected hidden>--</option>
@@ -17,10 +17,10 @@ $('body').append(`
           <span>分鐘</span>
         </div>
       </div>
-      <div class="input-group" style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">下班時間</label>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <input type="time" id="CB_endTime" value="19:00" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+      <div class="cb-input-group">
+        <label class="cb-input-label">下班時間</label>
+        <div class="cb-input-row">
+          <input type="time" id="CB_endTime" value="19:00" class="cb-time-input">
           <span style="margin-left: 10px;">隨機後</span>
           <select id="CB_endRandom" style="width: 60px; padding: 5px;">
             <option value="" default selected hidden>--</option>

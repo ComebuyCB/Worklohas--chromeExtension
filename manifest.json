@@ -38,7 +38,8 @@
     "activeTab",
     "scripting",
     "alarms",
-    "notifications"
+    "notifications",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "https://cloud.nueip.com/*",
