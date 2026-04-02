@@ -61,18 +61,11 @@ window.addEventListener('message', (event) => {
   const message = event.data;
   if (event.source !== window) return;
   
-  // 檢查消息格式
-  if (!message.from || !message.to || !message.type) {
-    return;
-  }
-  
-  // 檢查是否為發送給 NUEIP 的消息
-  if (message.to !== 'NUEIP') {
-    return;
-  }
-  
-  if (message.type === 'INIT_SELECT_VALUES') {
-    console.log('content.js: INIT_SELECT_VALUES → @NUEIP');
+  // 檢查消息格式和目標
+  if (!message?.from || !message?.type || message.to !== 'cloud.nueip.com/attendance_record') return;
+
+  if (message.type === 'INIT') {
+    console.log(`content.js: INIT → @[${message.to}]`);
     initializeSelectValues(message.data.autoPunchSettings);
   }
 });
@@ -121,7 +114,7 @@ $(document).on('click', '#CB_btn', function() {
 
   console.log('@NUEIP → content.js: SAVE_SELECT_VALUES');
   window.postMessage({ // 發送消息給 content.js
-    from: 'NUEIP',
+    from: 'cloud.nueip.com/attendance_record',
     to: 'content.js',
     type: 'SAVE_SELECT_VALUES',
     data: {

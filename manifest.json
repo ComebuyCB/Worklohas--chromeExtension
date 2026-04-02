@@ -24,11 +24,12 @@
       "matches": [
         "https://cloud.nueip.com/*",
         "https://www.youtube.com/*",
-        "https://rent.591.com.tw/*"
+        "https://rent.591.com.tw/*",
+        "https://projects.worklohas.com/*"
       ],
       "js": [
         "static/jquery-3.5.1/jquery.min.js",
-        "src/inject-config/sites.js",
+        "src/inject-common/sites.js",
         "src/content.js"
       ]
     }
@@ -44,15 +45,17 @@
   "host_permissions": [
     "https://cloud.nueip.com/*",
     "https://www.youtube.com/*",
-    "https://rent.591.com.tw/*"
+    "https://rent.591.com.tw/*",
+    "https://projects.worklohas.com/*"
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/inject/**/*", "src/config/*"],
+      "resources": ["src/inject/**/*", "src/inject-common/*"],
       "matches": [
         "https://cloud.nueip.com/*",
         "https://www.youtube.com/*",
-        "https://rent.591.com.tw/*"
+        "https://rent.591.com.tw/*",
+        "https://projects.worklohas.com/*"
       ]
     }
   ]

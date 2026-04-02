@@ -1,15 +1,7 @@
 // 監聽來自其他組件的訊息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 檢查消息格式
-  if (!message.from || !message.to || !message.type) {
-    return true;
-  }
-  
-  // 檢查是否為發送給 background.js 的消息
-  if (message.to !== 'background.js') {
-    return true;
-  }
-  
+  if (!message.from || message.to !== 'background.js' || !message.type) { return true; }
+
   if (message.type === 'updateReminders') {
     console.log(`${message.from}: updateReminders → @background.js`);
     updateReminders(message.data.reminders);
@@ -110,11 +102,11 @@ function clearAllReminders(callback) {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name.startsWith('reminder_')) {
     const reminderId = alarm.name.replace('reminder_', '');
-    
+
     chrome.storage.local.get(['reminders'], (result) => {
       if (result.reminders) {
         const reminder = result.reminders.find(r => r.id === reminderId);
-        
+
         if (reminder) {
           const notificationOptions = {
             type: 'basic',
@@ -122,10 +114,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
             title: '打卡提醒',
             message: reminder.message || '記得打卡！'
           };
-          
+
           chrome.notifications.create(`reminder-notification-${reminderId}`, notificationOptions, (notificationId) => {
             if (chrome.runtime.lastError) {
-              console.error('創建通知失敗:', chrome.runtime.lastError);
+              console.error('BG_ 創建通知失敗:', chrome.runtime.lastError);
             }
           });
         }
@@ -133,3 +125,22 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     });
   }
 });
+
+// 擴充功能啟動時
+chrome.runtime.onStartup.addListener(() => {
+  initializeReminders();
+});
+
+// 擴充功能安裝或更新時
+chrome.runtime.onInstalled.addListener(() => {
+  initializeReminders();
+});
+
+// 初始化提醒
+function initializeReminders() {
+  chrome.storage.local.get(['reminders'], (result) => {
+    if (result.reminders && result.reminders.length > 0) {
+      updateReminders(result.reminders);
+    }
+  });
+}

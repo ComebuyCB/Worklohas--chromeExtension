@@ -9,18 +9,10 @@ window.addEventListener('message', (event) => {
   const message = event.data;
   
   // 檢查消息格式和目標
-  if (!message.from || !message.to || !message.type) {
-    return;
-  }
-  
-  // 檢查是否為發送給 RENT591 的消息
-  if (message.to !== 'RENT591') {
-    return;
-  }
-  
-  // 處理初始化消息
-  if (message.type === 'INIT_RENT_LIST') {
-    console.log('591 Rent: 收到列表頁面初始化消息');
+  if (!message?.from || !message?.type || message.to !== 'rent.591.com.tw/list') return;
+
+  if (message.type === 'INIT') {
+    console.log(`content.js: INIT → @[${message.to}]`);
     initializeListPage();
   }
 });
@@ -36,18 +28,31 @@ function initializeListPage() {
 function extractRentalData() {
     const itemInfos = document.querySelectorAll('.item-info');
     const data = [];
-    
+
     itemInfos.forEach(item => {
+        // Extract image - find by alt="物件圖片" or class="common-img"
+        let imgSrc = '';
+        const parentItem = item.closest('.vue-list-rent-item') || item.parentElement;
+        if (parentItem) {
+            let imgElement = parentItem.querySelector('img[alt="物件圖片"]');
+            if (!imgElement) {
+                imgElement = parentItem.querySelector('img.common-img');
+            }
+            if (imgElement) {
+                imgSrc = imgElement.getAttribute('data-src') || imgElement.getAttribute('src') || '';
+            }
+        }
+
         // Extract title and href from .item-info-title a
         const titleElement = item.querySelector('.item-info-title a');
         const href = titleElement ? titleElement.getAttribute('href') : '';
         const title = titleElement ? titleElement.textContent.trim() : '';
-        
+
         // Extract metro distance from .house-metro
         const metroElement = item.querySelector('.house-metro');
         let metroText = '';
         let distanceMeters = 0;
-        
+
         if (metroElement) {
             const parentDiv = metroElement.parentElement;
             if (parentDiv) {
@@ -59,7 +64,7 @@ function extractRentalData() {
                 }
             }
         }
-        
+
         // Extract 獨立套房 from .house-home parent span
         const houseHomeElement = item.querySelector('.house-home');
         let houseType = '';
@@ -72,7 +77,7 @@ function extractRentalData() {
                 }
             }
         }
-        
+
         // Extract 屋主張先生 from .role-name
         const roleNameElement = item.querySelector('.role-name');
         let ownerName = '';
@@ -82,16 +87,17 @@ function extractRentalData() {
                 ownerName = firstSpan.textContent.trim();
             }
         }
-        
+
         // Extract price from .item-info-price
         const priceElement = item.querySelector('.item-info-price');
         let priceText = '';
         if (priceElement) {
             priceText = priceElement.textContent.trim();
         }
-        
+
         if (href || title || metroText) {
             data.push({
+                img: imgSrc,
                 href: href,
                 title: title,
                 metroText: metroText,
@@ -102,11 +108,14 @@ function extractRentalData() {
             });
         }
     });
-    
+
     return data;
 }
 
 function createSortableTable(data) {
+    // Reset sort direction to ensure first click is always ascending
+    sortDirection = {};
+
     // Create fullscreen overlay if it doesn't exist
     let overlay = document.getElementById('rental-fullscreen-overlay');
     if (!overlay) {
@@ -115,26 +124,36 @@ function createSortableTable(data) {
         document.body.appendChild(overlay);
     }
     
+    // 複製分頁器
+    const originalPaginator = document.querySelector('.paginator-wrapper');
+    let paginatorHtml = '';
+    if (originalPaginator) {
+        paginatorHtml = `<div class="paginator-wrapper-clone">${originalPaginator.innerHTML}</div>`;
+    }
+
     let html = `
     <div id="rental-fullscreen-content">
         <button id="rental-fullscreen-close">×</button>
         <h2>租房資料表格 (點擊表頭排序) - 共 ${data.length} 筆</h2>
+        ${paginatorHtml}
         <table id="rental-table-inline">
             <thead>
                 <tr>
-                    <th data-column="0">標題 <span class="sort-indicator-inline"></span></th>
-                    <th data-column="1">捷運資訊 <span class="sort-indicator-inline"></span></th>
-                    <th data-column="2">距離(公尺) <span class="sort-indicator-inline"></span></th>
-                    <th data-column="3">房型 <span class="sort-indicator-inline"></span></th>
-                    <th data-column="4">屋主 <span class="sort-indicator-inline"></span></th>
-                    <th data-column="5">價格 <span class="sort-indicator-inline"></span></th>
+                    <th width="50">圖片</th>
+                    <th data-column="1">標題 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="2">捷運資訊 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="3">距離(公尺) <span class="sort-indicator-inline"></span></th>
+                    <th data-column="4">房型 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="5">屋主 <span class="sort-indicator-inline"></span></th>
+                    <th data-column="6">價格 <span class="sort-indicator-inline"></span></th>
                 </tr>
             </thead>
             <tbody>`;
-    
+
     data.forEach(item => {
         html += `
             <tr>
+                <td>${item.img ? `<img src="${item.img}" style="max-width: 100px; height: auto;">` : ''}</td>
                 <td><a href="${item.href}" target="_blank">${item.title}</a></td>
                 <td>${item.metroText}</td>
                 <td>${item.distanceMeters}</td>
@@ -210,14 +229,14 @@ function sortTable(columnIndex) {
     rows.sort((a, b) => {
         let aValue = a.getElementsByTagName('td')[columnIndex].textContent.trim();
         let bValue = b.getElementsByTagName('td')[columnIndex].textContent.trim();
-        
-        // For distance column, convert to numbers
-        if (columnIndex === 2) {
+
+        // For distance column (now column 3 instead of 2), convert to numbers
+        if (columnIndex === 3) {
             aValue = parseInt(aValue) || 0;
             bValue = parseInt(bValue) || 0;
             return sortDirection[columnIndex] === 'asc' ? aValue - bValue : bValue - aValue;
         }
-        
+
         // For text columns
         if (sortDirection[columnIndex] === 'asc') {
             return aValue.localeCompare(bValue);

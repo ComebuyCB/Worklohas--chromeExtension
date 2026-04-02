@@ -7,6 +7,7 @@
   <script src="/static/bootstrap-5.3.2/js/bootstrap.bundle.min.js"></script>
   <link href="/static/fontawesome-free-5.15.4-web/css/all.min.css" rel="stylesheet">
   <link href="popup.css" rel="stylesheet">
+  <script src="/src/inject-common/sites.js"></script>
 </head>
 <body>
   <div id="myapp">
@@ -17,14 +18,24 @@
 
     <hr>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="mb-0 fw-bold">打卡提醒</h5>
+    <div class="mb-3">
+      <h5 class="mb-2 fw-bold">網站功能開關</h5>
+      <div id="siteTogglesContainer" class="d-flex flex-column gap-2">
+        <!-- 網站開關將由 JS 動態生成 -->
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="mb-0 fw-bold">簡易提醒</h5>
       <button id="addReminder" class="btn btn-primary btn-circle fs-3">+</button>
     </div>
-    
+
     <div id="remindersContainer">
       <!-- 提醒項目將由 JS 動態生成 -->
     </div>
+
     <div class="toast-container-fixed">
       <div id="toast" class="toast align-items-center text-white bg-success w-auto border-0" role="alert" aria-live="assertive" aria-atomic="true" style="display: none;">
         <div class="d-flex">

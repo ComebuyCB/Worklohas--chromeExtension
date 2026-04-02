@@ -4,3 +4,4 @@ body { padding: 12px; min-width: 280px; font-family: Arial, sans-serif; }
 .btn-remove { width: 24px; height: 24px; padding: 0; background: none !important; border: none !important; opacity: 0.6; transition: opacity 0.2s; }
 .btn-remove:hover { opacity: 1 !important; }
 .toast-container-fixed { position: fixed; top: 10px; right: 10px; z-index: 1000; }
+.text-more { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

@@ -1,6 +1,7 @@
 $(document).ready(() => {
   window.reminderManager = new ReminderManager();
-  
+  window.siteToggleManager = new SiteToggleManager();
+
   // 綁定複製按鈕事件
   $('button[data-copy]').on('click', function() {
     const textToCopy = $(this).data('copy');
@@ -10,26 +11,8 @@ $(document).ready(() => {
 
 async function copyContext(text) {
   try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      showToast('已複製!');
-    } else {
-      // 備用方案：創建隱藏的 textarea 元素
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      if (document.execCommand('copy')) {
-        showToast('已複製!');
-      } else {
-        showToast('複製失敗');
-      }
-      document.body.removeChild(textArea);
-    }
+    await navigator.clipboard.writeText(text);
+    showToast('已複製!');
   } catch (err) {
     console.error('複製失敗:', err);
     showToast('複製失敗');
@@ -46,9 +29,7 @@ function showToast(message = '設定已儲存') {
 
 class ReminderManager {
   constructor() {
-    this.reminders = [
-      { id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' }
-    ];
+    this.reminders = [];
     this.updateColorInterval = null;
     this.init();
   }
@@ -89,12 +70,12 @@ class ReminderManager {
     }
   }
 
-  createReminderItem(index, reminder = { id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' }) {
+  createReminderItem(index, reminder) { // reminder = { id: this.generateId(), enabled: false, hour: '09', min: '00', message: '提醒標題' }
     const timeValue = `${reminder.hour}:${reminder.min}`;
     const triangleColor = this.getReminderStatusColor(reminder.hour, reminder.min, reminder.enabled);
 
     return `
-      <div class="reminder-item card mb-2 shadow-sm" data-index="${index}" data-id="${reminder.id}">
+      <div class="reminder-item card mt-2 shadow-sm" data-index="${index}" data-id="${reminder.id}">
         <div class="card-header d-flex align-items-center py-2 px-3 bg-light position-relative gap-1 overflow-hidden">
           <div class="reminder-triangle" style="border-left: 16px solid ${triangleColor};"></div>
           <input type="text" class="reminder-message form-control form-control-sm border-0 bg-transparent fw-bold"  placeholder="輸入提醒標題" value="${reminder.message}">
@@ -119,27 +100,19 @@ class ReminderManager {
   renderReminders() {
     const container = $('#remindersContainer');
     container.empty();
-    
     this.reminders.forEach((reminder, index) => {
       container.append(this.createReminderItem(index, reminder));
     });
-    
-    if (this.reminders.length === 0) {
-      this.reminders.push({ id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' });
-      container.append(this.createReminderItem(0, this.reminders[0]));
-    }
   }
 
   loadReminders() {
     return new Promise((resolve) => {
-      chrome.tabs.query({ active: true, currentWindow: true }, () => {
-        chrome.storage.local.get(['reminders'], (result) => {
-          if (result.reminders && result.reminders.length > 0) {
-            this.reminders = result.reminders;
-          }
-          this.renderReminders();
-          resolve();
-        });
+      chrome.storage.local.get(['reminders'], (result) => {
+        if (result.reminders && result.reminders.length > 0) {
+          this.reminders = result.reminders;
+        }
+        this.renderReminders();
+        resolve();
       });
     });
   }
@@ -172,13 +145,13 @@ class ReminderManager {
   }
 
   addReminder() {
-    this.reminders.push({ id: this.generateId(), enabled: false, hour: '09', min: '00', message: '記得打卡！' });
+    this.reminders.push({ id: this.generateId(), enabled: false, hour: '09', min: '00', message: '提醒標題' });
     this.renderReminders();
     this.saveReminders('新增提醒成功');
   }
 
   removeReminder(id) {
-    if (this.reminders.length > 1) {
+    if (this.reminders.length >= 1) {
       const index = this.reminders.findIndex(r => r.id === id);
       if (index !== -1) {
         this.reminders.splice(index, 1);
@@ -256,5 +229,96 @@ class ReminderManager {
   destroy() {
     this.stopColorUpdateInterval();
     $(document).off('.reminderManager');
+  }
+}
+
+// 網站開關管理器
+class SiteToggleManager {
+  constructor() {
+    this.sites = [];
+    this.siteToggles = {};
+    this.loadSitesFromConfig();
+  }
+
+  loadSitesFromConfig() {
+    // 從 sites.js 載入配置
+    if (typeof inject_sites !== 'undefined') {
+      Object.keys(inject_sites).forEach(hostname => {
+        const siteConfig = inject_sites[hostname];
+        this.sites.push({
+          hostname: hostname,
+          description: siteConfig.description,
+          favicon: siteConfig.favicon
+        });
+      });
+    }
+    this.init();
+  }
+
+  getFaviconUrl(hostname) {
+    return `https://${hostname}/favicon.ico`;
+  }
+
+  async init() {
+    await this.loadToggles();
+    this.renderToggles();
+    this.bindEvents();
+  }
+
+  loadToggles() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['siteToggles'], (result) => {
+        if (result.siteToggles) {
+          this.siteToggles = result.siteToggles;
+        } else {
+          this.sites.forEach(site => { // 預設全部啟用
+            this.siteToggles[site.hostname] = true;
+          });
+        }
+        resolve();
+      });
+    });
+  }
+
+  saveToggles() {
+    chrome.storage.local.set({ siteToggles: this.siteToggles }, () => {
+      showToast('網站開關已更新');
+    });
+  }
+
+  renderToggles() {
+    const container = $('#siteTogglesContainer');
+    container.empty();
+
+    this.sites.forEach(site => {
+      const isEnabled = this.siteToggles[site.hostname] !== false;
+      const faviconUrl = site.favicon ? site.favicon : this.getFaviconUrl(site.hostname);
+
+      const toggleHtml = `
+        <div class="d-flex justify-content-between align-items-center p-2 border rounded" data-hostname="${site.hostname}">
+          <div class="d-flex align-items-center gap-2">
+            <img src="${faviconUrl}" alt="" style="width: 20px; height: 20px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+            <i class="fas fa-globe" style="width: 20px; display: none;"></i>
+            <div style="max-width: 160px;">
+              <div class="fw-bold text-more" style="font-size: 0.9rem;" title="${site.hostname}">${site.hostname}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">${site.description}</div>
+            </div>
+          </div>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input site-toggle" type="checkbox" ${isEnabled ? 'checked' : ''}>
+          </div>
+        </div>
+      `;
+      container.append(toggleHtml);
+    });
+  }
+
+  bindEvents() {
+    $(document).on('change', '.site-toggle', (e) => {
+      const hostname = $(e.currentTarget).closest('[data-hostname]').data('hostname');
+      const isEnabled = $(e.currentTarget).prop('checked');
+      this.siteToggles[hostname] = isEnabled;
+      this.saveToggles();
+    });
   }
 }

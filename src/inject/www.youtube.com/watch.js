@@ -1,11 +1,6 @@
 // YouTube 功能增強腳本
 console.log('CB_YouTube: YouTube 注入腳本已載入');
 
-// 初始化 YouTube 功能
-function initYouTube() {
-  createFloatingButton();
-}
-
 // 創建浮動按鈕
 function createFloatingButton() {
   if (document.getElementById('cb-youtube-button')) return;
@@ -24,54 +19,56 @@ window.addEventListener('message', (event) => {
   const message = event.data;
   if (event.source !== window) return;
   
-  // 檢查消息格式
-  if (!message.from || !message.to || !message.type) {
-    return;
-  }
-  
-  // 檢查是否為發送給 YOUTUBE 的消息
-  if (message.to !== 'YOUTUBE') {
-    return;
-  }
-  
-  if (message.type === 'INIT_YOUTUBE_WATCH') {
-    console.log('content.js: INIT_YOUTUBE_WATCH → @YOUTUBE');
+  // 檢查消息格式和目標
+  if (!message?.from || !message?.type || message.to !== 'www.youtube.com/watch') return;
+
+  if (message.type === 'INIT') {
+    console.log(`content.js: INIT → @[${message.to}]`);
     initYouTube();
   }
 });
 
-// 如果頁面已經載入完成，直接初始化
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initYouTube();
-  setInterval(_skipAds, 10);
-} else {
-  document.addEventListener('DOMContentLoaded', initYouTube);
+function initYouTube() {
+  _skipAds();
+  // createFloatingButton();
 }
 
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initYouTube();
+} else {
+  document.addEventListener('DOMContentLoaded', ()=>{
+    initYouTube();
+  });
+}
 
-function _skipAds(){
-	console.log('===偵測廣告中===');
-	
-	// Skip廣告
-	let adSkip = document.querySelector('.ytp-ad-skip-button-modern');
-	if (adSkip) {
-		adSkip.click();
-		console.log('關閉 Skip廣告!');
-	}
-	
-	// 彈窗廣告
-	let adBox = document.querySelector('.ytp-ad-overlay-close-button');
-	if (adBox) {
-		adBox.click();
-		console.log('關閉 彈窗廣告!');
-	}
-	
-	// 倒數廣告
-	let video = document.querySelector('.html5-main-video');
-	let adShowing = document.querySelector('.ad-showing');
-	
-	if (adShowing && video && video.currentTime < video.duration - 0.01) {
-		video.currentTime = video.duration - 0.01;
-		console.log('關閉 倒數廣告!');
-	}
+function _skipAds() {
+  console.log('===偵測廣告中===');
+
+  // Skip廣告
+  const adSkip = document.querySelector('.ytp-ad-skip-button-modern');
+  if (adSkip) {
+    adSkip.click();
+    console.log('關閉 Skip廣告!');
+  }
+
+  // 彈窗廣告
+  const adBox = document.querySelector('.ytp-ad-overlay-close-button');
+  if (adBox) {
+    adBox.click();
+    console.log('關閉 彈窗廣告!');
+  }
+
+  // 倒數廣告
+  const skipAdButton = document.querySelector('.ytp-skip-ad-button');
+  const video = document.querySelector('.html5-main-video');
+  const adShowing = document.querySelector('.ad-showing');
+  if (adShowing && video && video.currentTime < video.duration - 0.01) {
+    // video.currentTime = video.duration - 0.01;
+    console.log('關閉 倒數廣告!');
+  }
+
+  let sto = setTimeout(() => {
+    clearTimeout(sto);
+    _skipAds();
+  }, 3000);
 }

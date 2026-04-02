@@ -8,18 +8,10 @@ window.addEventListener('message', (event) => {
   const message = event.data;
   
   // 檢查消息格式和目標
-  if (!message.from || !message.to || !message.type) {
-    return;
-  }
-  
-  // 檢查是否為發送給 NUEIP 的消息
-  if (message.to !== 'NUEIP') {
-    return;
-  }
-  
-  // 處理初始化消息
-  if (message.type === 'INIT_LOGIN') {
-    console.log('NUEIP Login: 收到初始化消息');
+  if (!message?.from || !message?.type || message.to !== 'cloud.nueip.com/login') return;
+
+  if (message.type === 'INIT') {
+    console.log(`content.js: INIT → @[${message.to}]`);
     initializeLoginPage();
   }
 });
