@@ -133,7 +133,7 @@ function initialize() {
 }
 initialize();
 
-// 監聽 URL 變化（適用於 SPA 應用如 YouTube）
+// 監聽 URL 變化（適用於 SPA 應用）
 let lastUrl = location.href;
 new MutationObserver(() => {
   const url = location.href;

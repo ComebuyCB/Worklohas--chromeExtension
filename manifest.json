@@ -1,20 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "CB_測試用擴充功能",
+  "name": "Worklohas的擴充功能",
   "version": "1.0",
-  "description": "CB_測試用擴充功能",
+  "description": "快速打卡 | 複製內文 | 測試站自動填入帳密",
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "static/icons/icon16.png",
-      "48": "static/icons/icon48.png",
-      "128": "static/icons/icon128.png"
+      "16": "static/img/icons/icon16.png",
+      "48": "static/img/icons/icon48.png",
+      "128": "static/img/icons/icon128.png"
     }
   },
   "icons": {
-    "16": "static/icons/icon16.png",
-    "48": "static/icons/icon48.png",
-    "128": "static/icons/icon128.png"
+    "16": "static/img/icons/icon16.png",
+    "48": "static/img/icons/icon48.png",
+    "128": "static/img/icons/icon128.png"
   },
   "background": {
     "service_worker": "src/background.js"
@@ -23,12 +23,11 @@
     {
       "matches": [
         "https://cloud.nueip.com/*",
-        "https://www.youtube.com/*",
         "https://rent.591.com.tw/*",
         "https://projects.worklohas.com/*"
       ],
       "js": [
-        "static/jquery-3.5.1/jquery.min.js",
+        "static/plugins/jquery-3.6.4/jquery.min.js",
         "src/inject-common/sites.js",
         "src/content.js"
       ]
@@ -40,20 +39,28 @@
     "scripting",
     "alarms",
     "notifications",
-    "clipboardWrite"
+    "clipboardWrite",
+    "identity"
   ],
   "host_permissions": [
     "https://cloud.nueip.com/*",
-    "https://www.youtube.com/*",
     "https://rent.591.com.tw/*",
-    "https://projects.worklohas.com/*"
+    "https://projects.worklohas.com/*",
+    "https://sheets.googleapis.com/*",
+    "https://www.googleapis.com/*"
   ],
+  "oauth2": {
+    "client_id": "804323187732-i12d3em757ot67fj9muc26micfi6e8ig.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  },
   "web_accessible_resources": [
     {
       "resources": ["src/inject/**/*", "src/inject-common/*"],
       "matches": [
         "https://cloud.nueip.com/*",
-        "https://www.youtube.com/*",
         "https://rent.591.com.tw/*",
         "https://projects.worklohas.com/*"
       ]

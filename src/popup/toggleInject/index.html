@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="/static/plugins/jquery-3.6.4/jquery.min.js"></script>
+  <link href="/static/plugins/bootstrap-5.3.8/css/bootstrap.min.css" rel="stylesheet">
+  <script src="/static/plugins/bootstrap-5.3.8/js/bootstrap.bundle.min.js"></script>
+  <link href="/static/plugins/fontawesome-free-7.2.0-web/css/all.min.css" rel="stylesheet">
+  <link href="main.css" rel="stylesheet">
+  <script src="/src/inject-common/sites.js"></script>
+</head>
+<body>
+  <div id="myapp">
+
+    <div class="mb-3">
+      <h5 class="mb-2 fw-bold">網站功能開關</h5>
+      <div id="siteTogglesContainer" class="d-flex flex-column gap-2">
+        <!-- 網站開關將由 JS 動態生成 -->
+      </div>
+    </div>
+
+    <div class="toast-container-fixed">
+      <div id="toast" class="toast align-items-center text-white bg-success w-auto border-0" role="alert" aria-live="assertive" aria-atomic="true" style="display: none;">
+        <div class="d-flex">
+          <div class="toast-body">
+            設定已儲存
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

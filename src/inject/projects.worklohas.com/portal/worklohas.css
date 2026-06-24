@@ -7,6 +7,7 @@
 #zpsDetailView { max-width: 1100px; right: 0; left: unset; }
 #zpsDetailView #mainExtContainer { height: 97vh; }
 #zpsDetailView .detail-container { --dtTabHeaderTop: calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--dtStickyBoxMarginTop) - 2px); }
+
 #zpsDetailView #detail-rhs { padding-inline: 16px; }
 #zpsDetailView .detail-block-area { margin-top: 12px; }
 #zpsDetailView .detail-block-area editor-data { max-height: unset; }
@@ -17,6 +18,7 @@
 #zpsDetailView #tabInlineBlock { margin: 0px -22px; padding: 0px 22px; background: var(--cb-cardHeaderBg); }
 #zpsDetailView .module-content-area > .module-content-title { height: var(--fs48px); margin: -12px -15px -4px -15px; padding: 12px 15px;
 	 background: var(--cb-cardHeaderBg); border-radius: var(--detailBlockRadius) var(--detailBlockRadius) 0 0; }
+#zpsDetailView .module-field-container>.detail-field-item[multiline="no"] { width: 49%; }
 
 .cb-scrollBtnBox { --w: 40px; --h: 28px; position: absolute; bottom: -4px; }
 .cb-scrollBtnBox._left { left: 16px; }
