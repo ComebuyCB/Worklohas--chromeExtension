@@ -21,6 +21,7 @@ class PasswordManager {
     this.accountInput  = null
     this.passwordInput = null
     this.form          = null
+    this._uiState      = {}
 
     this.init()
   }
@@ -36,7 +37,16 @@ class PasswordManager {
 
   async _initState() {
     const state = await this._send('pm_get_state', {})
-    if (state?.collapsed) this._toggleCollapse()
+    this._uiState = state || {}
+    if (this._uiState.collapsed) this._toggleCollapse()
+    if (this._uiState.x != null) {
+      this.panel.style.left = this._uiState.x + 'px'
+      this.panel.style.top  = this._uiState.y + 'px'
+    }
+  }
+
+  _saveState() {
+    window.postMessage({ from: 'password-manager.js', to: 'content.js', type: 'pm_save_state', requestId: null, data: this._uiState }, '*')
   }
 
   _bindEvents() {
@@ -119,6 +129,15 @@ class PasswordManager {
       this.panel.classList.remove('is-dragging')
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+
+      const rect = this.panel.getBoundingClientRect()
+      const x = Math.min(Math.max(Math.round(rect.left), 0), window.innerWidth  - rect.width)
+      const y = Math.min(Math.max(Math.round(rect.top),  0), window.innerHeight - rect.height)
+      this.panel.style.left = x + 'px'
+      this.panel.style.top  = y + 'px'
+      this._uiState.x = x
+      this._uiState.y = y
+      this._saveState()
     }
 
     head.addEventListener('mousedown', (e) => {
@@ -128,10 +147,8 @@ class PasswordManager {
       startY    = e.clientY
       startLeft = rect.left
       startTop  = rect.top
-      // 第一次拖曳時從 bottom 定位轉為 top 定位，避免位置跳動
-      this.panel.style.bottom = 'auto'
-      this.panel.style.left   = startLeft + 'px'
-      this.panel.style.top    = startTop  + 'px'
+      this.panel.style.left = startLeft + 'px'
+      this.panel.style.top  = startTop  + 'px'
       this.panel.classList.add('is-dragging')
       document.addEventListener('mousemove', onMove)
       document.addEventListener('mouseup', onUp)
@@ -261,7 +278,8 @@ class PasswordManager {
     body.style.display = isHidden ? '' : 'none'
     btn.textContent    = isHidden ? '−' : '+'
     this.panel.classList.toggle('is-collapsed', !isHidden)
-    window.postMessage({ from: 'password-manager.js', to: 'content.js', type: 'pm_save_state', requestId: null, data: { collapsed: !isHidden } }, '*')
+    this._uiState.collapsed = !isHidden
+    this._saveState()
   }
 
   _send(type, data = {}) {

@@ -1,28 +1,28 @@
 // 添加時間設定介面
 $('body').append(`
-  <div id="CB_fixed">
-    <div id="CB_toggle">
+  <div id="WL_fixed">
+    <div id="WL_toggle">
       <i class="fa fa-chevron-up"></i>
     </div>
-    <div id="CB_content" style="margin-top: 20px;">
-      <div class="cb-input-group">
-        <label class="cb-input-label">上班時間</label>
-        <div class="cb-input-row">
-          <input type="time" id="CB_startTime" value="10:00" class="cb-time-input">
+    <div id="WL_content" style="margin-top: 20px;">
+      <div class="wl-input-group">
+        <label class="wl-input-label">上班時間</label>
+        <div class="wl-input-row">
+          <input type="time" id="WL_startTime" value="10:00" class="wl-time-input">
           <span style="margin-left: 10px;">隨機前</span>
-          <select id="CB_startRandom" style="width: 60px; padding: 5px;">
+          <select id="WL_startRandom" style="width: 60px; padding: 5px;">
             <option value="" default selected hidden>--</option>
             ${Array.from({length: 13}, (_, i) => `<option value="${i * 5}" ${i === 2 ? 'selected' : ''}>${i * 5}</option>`).join('')}
           </select>
           <span>分鐘</span>
         </div>
       </div>
-      <div class="cb-input-group">
-        <label class="cb-input-label">下班時間</label>
-        <div class="cb-input-row">
-          <input type="time" id="CB_endTime" value="19:00" class="cb-time-input">
+      <div class="wl-input-group">
+        <label class="wl-input-label">下班時間</label>
+        <div class="wl-input-row">
+          <input type="time" id="WL_endTime" value="19:00" class="wl-time-input">
           <span style="margin-left: 10px;">隨機後</span>
-          <select id="CB_endRandom" style="width: 60px; padding: 5px;">
+          <select id="WL_endRandom" style="width: 60px; padding: 5px;">
             <option value="" default selected hidden>--</option>
             ${Array.from({length: 13}, (_, i) => `<option value="${i * 5}" ${i === 2 ? 'selected' : ''}>${i * 5}</option>`).join('')}
           </select>
@@ -30,18 +30,18 @@ $('body').append(`
         </div>
       </div>
     </div>
-    <button id="CB_btn" class="btn btn-danger btn-sm" style="width: 100%;">
+    <button id="WL_submitPunch" class="btn btn-danger btn-sm" style="width: 100%;">
       <i class="fa fa-plus"></i> 自動補卡
     </button>
   </div>
 `);
 
 // 添加切換功能
-$(document).on('click', '#CB_toggle', function() {
-  const $content = $('#CB_content');
+$(document).on('click', '#WL_toggle', function() {
+  const $content = $('#WL_content');
   const $icon = $(this).find('i');
-  const $btn = $('#CB_btn');
-  const $fixed = $('#CB_fixed');
+  const $btn = $('#WL_submitPunch');
+  const $fixed = $('#WL_fixed');
   
   if ($content.is(':visible')) {
     $content.slideUp();
@@ -65,28 +65,28 @@ window.addEventListener('message', (event) => {
   if (!message?.from || !message?.type || message.to !== 'cloud.nueip.com/attendance_record') return;
 
   if (message.type === 'INIT') {
-    console.log(`content.js: INIT → @[${message.to}]`);
-    initializeSelectValues(message.data.autoPunchSettings);
+    wlLog(`content.js: INIT → @[${message.to}]`);
+    initializeSelectValues(message.data.nueip_punch_settings);
   }
 });
 
 // 初始化時間輸入值
 function initializeSelectValues(values) {
-  console.log('initializeSelectValues', values);
+  wlLog('📂 initializeSelectValues', values);
   if (values) {
     // 設定時間輸入框，如果有儲存的值則使用，否則使用預設值
     if (values.startTime) {
-      $('#CB_startTime').val(values.startTime);
+      $('#WL_startTime').val(values.startTime);
     }
     if (values.endTime) {
-      $('#CB_endTime').val(values.endTime);
+      $('#WL_endTime').val(values.endTime);
     }
-    $('#CB_startRandom').val(values.startRandom || '10');
-    $('#CB_endRandom').val(values.endRandom || '10');
+    $('#WL_startRandom').val(values.startRandom || '10');
+    $('#WL_endRandom').val(values.endRandom || '10');
   }
 }
 
-var CB_selectValues = {
+var WL_selectValues = {
   startTime: '10:00',
   endTime: '19:00',
   startRandom: '10',
@@ -94,31 +94,31 @@ var CB_selectValues = {
 }
 
 // 監聽按鈕點擊
-$(document).on('click', '#CB_btn', function() {
-  const autoPunchSettings = {
-    startTime: $('#CB_startTime').val(),
-    endTime: $('#CB_endTime').val(),
-    startRandom: $('#CB_startRandom').val(),
-    endRandom: $('#CB_endRandom').val()
+$(document).on('click', '#WL_submitPunch', function() {
+  const punchSettings = {
+    startTime: $('#WL_startTime').val(),
+    endTime: $('#WL_endTime').val(),
+    startRandom: $('#WL_startRandom').val(),
+    endRandom: $('#WL_endRandom').val()
   };
 
-  if ( autoPunchSettings.startTime === '' || 
-    autoPunchSettings.endTime === '' || 
-    autoPunchSettings.startRandom === '' || 
-    autoPunchSettings.endRandom === '' ){
+  if ( punchSettings.startTime === '' ||
+    punchSettings.endTime === '' ||
+    punchSettings.startRandom === '' ||
+    punchSettings.endRandom === '' ){
     alert('請先設定完整');
     return;
   }
 
-  CB_selectValues = autoPunchSettings;
+  WL_selectValues = punchSettings;
 
-  console.log('@NUEIP → content.js: SAVE_SELECT_VALUES');
+  wlLog('💾 @NUEIP → content.js: SAVE_SELECT_VALUES');
   window.postMessage({ // 發送消息給 content.js
     from: 'cloud.nueip.com/attendance_record',
     to: 'content.js',
     type: 'SAVE_SELECT_VALUES',
     data: {
-      autoPunchSettings: autoPunchSettings
+      nueip_punch_settings: punchSettings
     }
   }, '*');
 
@@ -138,7 +138,6 @@ function autoCheckIn(){
     let TR_hasBG = $(trVal).attr('class').split(' ').some((val)=> (/bg_color/g).test(val));
     let TR_date = $.trim($(trVal).children('td[data-th="日期"]').find('.dateday')?.text());
     if (date_today < TR_date || TR_hasBG === true){
-      console.log(TR_date, '未來或休假');
       return true;
     }
 
@@ -146,7 +145,7 @@ function autoCheckIn(){
     let th_startTime = $.trim($(trVal).children('td[data-th="上班"]')?.text());
     let th_endTime = $.trim($(trVal).children('td[data-th="下班"]')?.text());
 
-    const { startTime: targetStartTime, endTime: targetEndTime, startRandom, endRandom } = CB_selectValues;
+    const { startTime: targetStartTime, endTime: targetEndTime, startRandom, endRandom } = WL_selectValues;
 
     if (th_startTime.length === 0){ // 補卡 (上班)
       let {hour, min} = getRdHourMin(targetStartTime, startRandom, "上班");
@@ -164,7 +163,7 @@ function autoCheckIn(){
   // 執行所有補卡請求
   if (ajaxArray.length > 0) {
     executeAjaxSequentially(ajaxArray).then((res)=>{
-      console.log(res);
+      wlLog('✅ 補卡結果', res);
       let successVals = res.filter((e)=> e?.code === 200);
       alert('自動打卡完畢! '+ '共'+ successVals.length +'筆。');
       window.location.reload();
@@ -207,7 +206,9 @@ function getRdHourMin(timeString, randomMins, type) {
 
 // Ajax Promise 封裝
 function promiseAjax(data){
-  console.log(`ajax 補卡(${data.section === 1 ? '上班' : '下班'}) !!!!!`, data);
+  console.group(`📍 補卡 ${data.section === 1 ? '上班' : '下班'} — ${data.date}`)
+  console.log(data)
+  console.groupEnd()
   return function(){
     return new Promise((resolve)=>{
       $.ajax({
@@ -215,7 +216,6 @@ function promiseAjax(data){
         url: '/attendance_record/addCorrectionPunch',
         data,
       }).done(function(res) {
-        console.log(res);
         resolve(res);
       }).error(function(res) {
         resolve(res.responseJSON);
@@ -228,7 +228,7 @@ function promiseAjax(data){
 async function executeAjaxSequentially(ajaxArray) {
   const results = [];
   for (let i = 0; i < ajaxArray.length; i++) {
-    console.log(`執行第 ${i + 1} 個補卡請求，共 ${ajaxArray.length} 個`);
+    wlLog(`⏳ 補卡進度 ${i + 1} / ${ajaxArray.length}`);
     try {
       const result = await ajaxArray[i]();
       results.push(result);
@@ -256,8 +256,8 @@ function loadingData(t, e) {
   var i = "action=" + t + "&loadInBatch=" + loadInBatch + "&loadBatchGroupNum=" + loadBatchGroupNum + "&loadBatchNumber=" + e + "&work_status=" + n,
       r = $("[name='ajax_url']").val();
   loadBatchSend[e] = $.post(r, i, (function(a) {
-    console.log(a); //// CB
-    window.CB_AttendanceData = a; //// CB
+    wlLog('📊 NUEIP 出勤資料', a); //// CB
+    window.WL_AttendanceData = a; //// CB
     return 1 === e && (dataQuantity = 0, $.each(a.data, (function(t, e) {
       if ($.each(e, (function(t, e) {
         dataQuantity++

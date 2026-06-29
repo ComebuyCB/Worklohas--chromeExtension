@@ -66,12 +66,12 @@ window.addEventListener('message', (event) => {
 
   // PM UI state：直接在 content.js 存取 storage.local，不需轉發 background
   if (message.type === 'pm_save_state') {
-    chrome.storage.local.set({ wl_pm_state: message.data });
+    chrome.storage.local.set({ wl_pm_settings: message.data });
     return;
   }
   if (message.type === 'pm_get_state') {
-    chrome.storage.local.get(['wl_pm_state'], (result) => {
-      window.postMessage({ from: 'content.js', to: 'password-manager.js', requestId: message.requestId, data: result.wl_pm_state || {} }, '*');
+    chrome.storage.local.get(['wl_pm_settings'], (result) => {
+      window.postMessage({ from: 'content.js', to: 'password-manager.js', requestId: message.requestId, data: result.wl_pm_settings || {} }, '*');
     });
     return;
   }
@@ -105,36 +105,43 @@ window.addEventListener('message', (event) => {
 
   if (message.type === 'SAVE_SELECT_VALUES') {
     console.log(`[content.js] ${message.from}: SAVE_SELECT_VALUES → @content.js`);
-    chrome.storage.local.set({ autoPunchSettings: message.data.autoPunchSettings });
+    chrome.storage.local.set({ nueip_punch_settings: message.data.nueip_punch_settings });
   }
 });
 
 // 注入腳本和樣式
 function injectScript(config) {
+  const commonScript = 'src/inject/_common/wl-common.js';
+  const allScripts = [commonScript, ...(config.inject?.js || [])];
+
+  // 若任一 JS 已存在於 DOM，代表已注入過，跳過（SPA 換頁保護）
+  const alreadyInjected = allScripts.some(f =>
+    document.querySelector(`script[src="${chrome.runtime.getURL(f)}"]`)
+  );
+  if (alreadyInjected) return;
+
   // 注入樣式 <link rel="stylesheet" href="...">
   config.inject?.css?.forEach(styleFile => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = chrome.runtime.getURL(styleFile);
-    document.head.appendChild(link);
+    document.body.appendChild(link);
   });
-
-  // 注入腳本 <script src="..."></script>
-  config.inject?.js?.forEach((scriptFile, index) => {
+  allScripts.forEach((scriptFile, index) => {
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL(scriptFile);
 
-    if (index === config.inject.js.length - 1) { // 最後一個腳本載入完成後發送初始化消息
+    if (index === allScripts.length - 1) { // 最後一個腳本載入完成後發送初始化消息
       script.onload = function() {
         // 特殊處理
         if (config.url === 'cloud.nueip.com/attendance_record') {
-          chrome.storage.local.get(['autoPunchSettings'], (result) => {
+          chrome.storage.local.get(['nueip_punch_settings'], (result) => {
             window.postMessage({
               from: 'content.js',
               to: config.url,
               type: 'INIT',
               data: {
-                autoPunchSettings: result.autoPunchSettings
+                nueip_punch_settings: result.nueip_punch_settings
               }
             }, '*');
           });
@@ -150,8 +157,8 @@ function injectScript(config) {
       };
     }
     
-    (document.head || document.documentElement).appendChild(script);
-  });
+    document.body.appendChild(script);
+  })
 }
 
 // 主要初始化函數
@@ -180,6 +187,21 @@ new MutationObserver(() => {
   const url = location.href;
   if (url !== lastUrl) {
     lastUrl = url;
-    setTimeout(initialize, 1000); // 延遲一秒確保頁面載入完成
+    setTimeout(() => {
+      const config = getCurrentSiteConfig();
+      if (!config) return;
+
+      const commonScript = 'src/inject/_common/wl-common.js';
+      const allScripts = [commonScript, ...(config.inject?.js || [])];
+      const alreadyInjected = allScripts.some(f =>
+        document.querySelector(`script[src="${chrome.runtime.getURL(f)}"]`)
+      );
+
+      if (alreadyInjected) {
+        window.postMessage({ from: 'content.js', to: config.url, type: 'UPDATE', data: {} }, '*');
+      } else {
+        initialize();
+      }
+    }, 1000);
   }
 }).observe(document, {subtree: true, childList: true});

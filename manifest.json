@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Worklohas 擴充功能",
   "version": "1.0",
-  "description": "快速打卡 | 複製內文 | 改變網站樣式",
+  "description": "快速打卡 | 複製內文 | 改變網站樣式 | 測試站帳密儲存與填入",
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
@@ -30,7 +30,7 @@
       ],
       "js": [
         "static/plugins/jquery-3.6.4/jquery.min.js",
-        "src/inject-common/sites.js",
+        "src/inject/sites.js",
         "src/content.js"
       ]
     }
@@ -46,8 +46,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "src/inject/**/*",
-        "src/inject-common/*"
+        "src/inject/**/*"
       ],
       "matches": [
         "https://cloud.nueip.com/*",
