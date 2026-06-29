@@ -38,15 +38,38 @@ class PasswordManager {
   async _initState() {
     const state = await this._send('pm_get_state', {})
     this._uiState = state || {}
-    if (this._uiState.collapsed) this._toggleCollapse()
-    if (this._uiState.x != null) {
-      this.panel.style.left = this._uiState.x + 'px'
-      this.panel.style.top  = this._uiState.y + 'px'
+
+    if (this._uiState.y != null) {
+      this.panel.style.top = this._uiState.y + 'px'
     }
+
+    // 直接還原收合 visual state，不走 _toggleCollapse（不需要重算 edge-snapping）
+    if (this._uiState.collapsed) {
+      const body = this.panel.querySelector('.js-wl-pm-body')
+      const btn  = this.panel.querySelector('.js-wl-pm-toggle')
+      body.style.display = 'none'
+      btn.textContent = '+'
+      this.panel.classList.add('is-collapsed')
+    }
+
+    requestAnimationFrame(() => this._clampPosition())
   }
 
   _saveState() {
     window.postMessage({ from: 'password-manager.js', to: 'content.js', type: 'pm_save_state', requestId: null, data: this._uiState }, '*')
+  }
+
+  _clampPosition() {
+    const rect = this.panel.getBoundingClientRect()
+    const x = Math.min(Math.max(Math.round(rect.left), 0), window.innerWidth - 17 - rect.width)
+    const y = Math.min(Math.max(Math.round(rect.top),  0), window.innerHeight    - rect.height)
+    this.panel.style.left = x + 'px'
+    this.panel.style.top  = y + 'px'
+    if (x !== this._uiState.x || y !== this._uiState.y) {
+      this._uiState.x = x
+      this._uiState.y = y
+      this._saveState()
+    }
   }
 
   _bindEvents() {
@@ -275,11 +298,41 @@ class PasswordManager {
     const body = this.panel.querySelector('.js-wl-pm-body')
     const btn  = this.panel.querySelector('.js-wl-pm-toggle')
     const isHidden = body.style.display === 'none'
-    body.style.display = isHidden ? '' : 'none'
-    btn.textContent    = isHidden ? '−' : '+'
-    this.panel.classList.toggle('is-collapsed', !isHidden)
-    this._uiState.collapsed = !isHidden
-    this._saveState()
+
+    if (!isHidden) {
+      // 收合：先記錄展開時的 rect，再收合
+      const before = this.panel.getBoundingClientRect()
+      body.style.display = 'none'
+      btn.textContent = '+'
+      this.panel.classList.add('is-collapsed')
+      this._uiState.collapsed = true
+
+      requestAnimationFrame(() => {
+        const after = this.panel.getBoundingClientRect()
+        let x = before.left
+        let y = before.top
+        const effectiveW = window.innerWidth - 17
+        // 右半邊：保持右邊緣不動
+        if (before.left > window.innerWidth  / 2) x = before.right  - after.width
+        // 下半邊：保持下邊緣不動
+        if (before.top  > window.innerHeight / 2) y = before.bottom - after.height
+        x = Math.min(Math.max(Math.round(x), 0), effectiveW          - after.width)
+        y = Math.min(Math.max(Math.round(y), 0), window.innerHeight  - after.height)
+        this.panel.style.left = x + 'px'
+        this.panel.style.top  = y + 'px'
+        this._uiState.x = x
+        this._uiState.y = y
+        this._saveState()
+      })
+    } else {
+      // 展開
+      body.style.display = ''
+      btn.textContent = '−'
+      this.panel.classList.remove('is-collapsed')
+      this._uiState.collapsed = false
+      this._saveState()
+      requestAnimationFrame(() => this._clampPosition())
+    }
   }
 
   _send(type, data = {}) {
