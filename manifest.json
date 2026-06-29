@@ -24,7 +24,9 @@
       "matches": [
         "https://cloud.nueip.com/*",
         "https://rent.591.com.tw/*",
-        "https://projects.worklohas.com/*"
+        "https://projects.worklohas.com/*",
+        "https://*.worklohas.com/*",
+        "https://*.worklohas.dev/*"
       ],
       "js": [
         "static/plugins/jquery-3.6.4/jquery.min.js",
@@ -33,19 +35,33 @@
       ]
     }
   ],
-  "permissions": [
-    "storage",
-    "activeTab",
-    "scripting",
-    "clipboardWrite",
-    "identity"
-  ],
   "host_permissions": [
     "https://cloud.nueip.com/*",
     "https://rent.591.com.tw/*",
-    "https://projects.worklohas.com/*",
+    "https://*.worklohas.com/*",
+    "https://*.worklohas.dev/*",
     "https://sheets.googleapis.com/*",
     "https://www.googleapis.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/inject/**/*",
+        "src/inject-common/*"
+      ],
+      "matches": [
+        "https://cloud.nueip.com/*",
+        "https://rent.591.com.tw/*",
+        "https://projects.worklohas.com/*",
+        "https://*.worklohas.com/*",
+        "https://*.worklohas.dev/*"
+      ]
+    }
+  ],
+  "permissions": [
+    "storage",
+    "clipboardWrite",
+    "identity"
   ],
   "oauth2": {
     "client_id": "804323187732-i12d3em757ot67fj9muc26micfi6e8ig.apps.googleusercontent.com",
@@ -53,15 +69,5 @@
       "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/drive.file"
     ]
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["src/inject/**/*", "src/inject-common/*"],
-      "matches": [
-        "https://cloud.nueip.com/*",
-        "https://rent.591.com.tw/*",
-        "https://projects.worklohas.com/*"
-      ]
-    }
-  ]
+  }
 }

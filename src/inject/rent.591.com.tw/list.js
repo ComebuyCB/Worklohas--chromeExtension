@@ -122,6 +122,12 @@ function createSortableTable(data) {
         overlay = document.createElement('div');
         overlay.id = 'rental-fullscreen-overlay';
         document.body.appendChild(overlay);
+        // ESC 關閉，只綁定一次
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && overlay.style.display === 'block') {
+                overlay.style.display = 'none';
+            }
+        });
     }
     
     // 複製分頁器
@@ -190,13 +196,6 @@ function createSortableTable(data) {
     // Add overlay click to close
     overlay.addEventListener('click', function(e) {
         if (e.target === overlay) {
-            overlay.style.display = 'none';
-        }
-    });
-    
-    // Add ESC key to close
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && overlay.style.display === 'block') {
             overlay.style.display = 'none';
         }
     });

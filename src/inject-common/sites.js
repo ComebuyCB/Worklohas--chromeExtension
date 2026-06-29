@@ -4,11 +4,16 @@
  * URL 匹配規則:
  * - 沒有 * : 精確匹配 (例: "example.com/page" 只匹配 /page)
  * - 有 * 結尾: 前綴匹配 (例: "example.com/blog*" 匹配 /blog, /blog/post-1, /blog/post-2 等)
+ * - key 為 *.domain: 前綴萬用字元匹配所有子網域
+ *
+ * quickLink: toggleInject 顯示的連結，無值時不顯示連結
+ * toggleKey: 多個 entry 共用同一開關時設定相同值
  */
 const inject_sites = {
   "cloud.nueip.com": {
     "description": "NUEIP 快速打卡功能",
     "group": "",
+    "quickLink": "https://cloud.nueip.com/attendance_record",
     "paths": [
       {
         "url": "cloud.nueip.com/attendance_record",
@@ -30,6 +35,7 @@ const inject_sites = {
     "description": "Zoho 詳細視窗化樣式",
     "group": "",
     "favicon": "https://static.zohocdn.com/projects/images/faviconIndication_0d933_.ico",
+    "quickLink": "https://projects.worklohas.com/portal/worklohas",
     "paths": [
       {
         "url": "projects.worklohas.com/portal/worklohas",
@@ -40,9 +46,38 @@ const inject_sites = {
       }
     ]
   },
+  "*.worklohas.com": {
+    "description": "帳密管理 (worklohas.com / worklohas.dev)",
+    "group": "",
+    "toggleKey": "worklohas-pm",
+    "paths": [
+      {
+        "url": "*",
+        "inject": {
+          "css": ["src/inject/worklohas.com/password-manager.css"],
+          "js": ["src/inject/worklohas.com/password-manager.js"]
+        }
+      }
+    ]
+  },
+  "*.worklohas.dev": {
+    "description": "帳密管理 (worklohas.com / worklohas.dev)",
+    "group": "",
+    "toggleKey": "worklohas-pm",
+    "paths": [
+      {
+        "url": "*",
+        "inject": {
+          "css": ["src/inject/worklohas.com/password-manager.css"],
+          "js": ["src/inject/worklohas.com/password-manager.js"]
+        }
+      }
+    ]
+  },
   "rent.591.com.tw": {
     "description": "591 租屋網表格化",
     "group": "其他",
+    "quickLink": "https://rent.591.com.tw/list",
     "paths": [
       {
         "url": "rent.591.com.tw/list",

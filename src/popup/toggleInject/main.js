@@ -23,12 +23,18 @@ class SiteToggleManager {
     if (typeof inject_sites !== 'undefined') {
       Object.keys(inject_sites).forEach(hostname => {
         const siteConfig = inject_sites[hostname];
+        const toggleKey = siteConfig.toggleKey || hostname;
+
+        // 相同 toggleKey 只保留第一筆（共用開關去重）
+        if (this.sites.some(s => s.toggleKey === toggleKey)) return;
+
         this.sites.push({
-          hostname: hostname,
+          hostname,
+          toggleKey,
+          quickLink: siteConfig.quickLink || null,
           description: siteConfig.description,
           favicon: siteConfig.favicon,
           group: siteConfig.group,
-          firstUrl: siteConfig.paths?.[0]?.url || hostname
         });
       });
     }
@@ -52,7 +58,7 @@ class SiteToggleManager {
           this.siteToggles = result.siteToggles;
         } else {
           this.sites.forEach(site => { // 預設全部啟用
-            this.siteToggles[site.hostname] = true;
+            this.siteToggles[site.toggleKey] = true;
           });
         }
         resolve();
@@ -80,15 +86,18 @@ class SiteToggleManager {
         currentGroup = site.group;
       }
 
-      const isEnabled = this.siteToggles[site.hostname] !== false;
+      const isEnabled = this.siteToggles[site.toggleKey] !== false;
       const faviconUrl = site.favicon ? site.favicon : this.getFaviconUrl(site.hostname);
+      const nameHtml = site.quickLink
+        ? `<a class="site-info-name" href="${site.quickLink}" target="_blank" rel="noopener noreferrer" title="${site.hostname}">${site.hostname}</a>`
+        : `<span class="site-info-name" title="${site.hostname}">${site.hostname}</span>`;
 
       const toggleHtml = `
-        <div class="site-item" data-hostname="${site.hostname}">
+        <div class="site-item" data-toggle-key="${site.toggleKey}">
           <img class="site-item--img" src="${faviconUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
           <i class="fas fa-globe site-item--img" style="display: none;"></i>
           <div class="site-item--info">
-            <a class="site-info-name" href="https://${site.firstUrl}" target="_blank" title="${site.hostname}">${site.hostname}</a>
+            ${nameHtml}
             <div class="site-info-desc" title="${site.description}">${site.description}</div>
           </div>
           <div class="site-item--toggle">
@@ -104,9 +113,9 @@ class SiteToggleManager {
 
   bindEvents() {
     $(document).on('change', '.site-toggle', (e) => {
-      const hostname = $(e.currentTarget).closest('[data-hostname]').data('hostname');
+      const toggleKey = $(e.currentTarget).closest('[data-toggle-key]').data('toggleKey');
       const isEnabled = $(e.currentTarget).prop('checked');
-      this.siteToggles[hostname] = isEnabled;
+      this.siteToggles[toggleKey] = isEnabled;
       this.saveToggles();
     });
   }

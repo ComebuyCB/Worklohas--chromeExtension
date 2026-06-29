@@ -1,11 +1,11 @@
-body { padding: 12px; min-width: 280px; font-family: Arial, sans-serif; }
+body { padding: 12px; min-width: 280px; font-family: Arial, sans-serif; background: #f8f9fa; }
 .toast-container-fixed { position: fixed; top: 10px; right: 10px; z-index: 1000; }
 
 .site-group-label { font-size: 0.7rem; }
-.site-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 4px; }
+.site-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 4px; background: #fff; }
 .site-item--img { width: 20px; height: 20px; flex-shrink: 0; }
 .site-item--info { flex: 1; min-width: 0; overflow: hidden; }
 .site-item--info .site-info-name { display: block; font-size: 0.9rem; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: inherit; text-decoration: none; }
-.site-item--info .site-info-name:hover { text-decoration: underline; }
+.site-item--info a.site-info-name:hover { text-decoration: underline; }
 .site-item--info .site-info-desc { font-size: 0.75rem; color: #6c757d; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .site-item--toggle { flex-shrink: 0; }

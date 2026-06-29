@@ -284,28 +284,4 @@ $(function () {
     }
   });
 
-  $('#btn-logout').on('click', async function () {
-    if (!confirm('確定要登出？')) return;
-    $(this).prop('disabled', true);
-    await send('logout');
-    $(this).prop('disabled', false);
-    allItems = [];
-    activeGroup = '';
-    $('#logged-area').hide();
-    $('#content-area').hide();
-    $('#login-area').show();
-  });
-
-  $('#btn-login').on('click', async function () {
-    $(this).prop('disabled', true).text('登入中…');
-    const res = await send('login');
-    $(this).prop('disabled', false).html('<i class="fab fa-google me-1"></i>登入 Google');
-    if (res?.data?.status === 'success') {
-      $('#login-area').hide();
-      loadList();
-    } else {
-      alert('登入失敗：' + (res?.data?.error || ''));
-    }
-  });
-
 });

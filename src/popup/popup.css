@@ -1,3 +1,21 @@
 html, body { margin: 0; padding: 0; overflow: hidden; }
-body { display: flex; width: 800px; height: 500px; }
-iframe { display: block; width: 50%; height: 100%; border: 0; }
+body { display: flex; flex-direction: column; width: 800px; height: 500px; background: #e2e8f0; }
+
+/* ── Header ───────────────────────────────────────────── */
+.wl-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: #1e293b; flex-shrink: 0; }
+.wl-header-brand { display: flex; align-items: center; gap: 8px; }
+.wl-header-icon { color: #38bdf8; font-size: 16px; }
+.wl-header-title { font-size: 16px; font-weight: 700; color: #f1f5f9; letter-spacing: .04em; }
+.wl-btn-gear { padding: 4px 6px; background: none; border: none; color: #94a3b8; font-size: 14px; transition: color .15s; }
+.wl-btn-gear:hover { color: #f1f5f9; }
+.wl-header .dropdown-menu { min-width: 140px; padding: 4px 0; border-color: #e2e8f0; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+.wl-header .dropdown-item { font-size: 13px; padding: 7px 14px; color: #334155; }
+.wl-header .dropdown-item:hover { background: #f1f5f9; }
+.wl-header .dropdown-item.text-danger { color: #dc3545; }
+.wl-header .dropdown-item.text-danger:hover { background: #fff1f0; }
+
+/* ── Iframe row ───────────────────────────────────────── */
+.iframe-row { display: flex; flex: 1; overflow: hidden; gap: 1px; background: #cbd5e1; }
+.iframe-wrap { position: relative; flex: 1; }
+.iframe-wrap::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 1px 5px rgba(0,0,0,.06); pointer-events: none; }
+iframe { display: block; width: 100%; height: 100%; border: 0; }

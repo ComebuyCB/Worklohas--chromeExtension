@@ -89,11 +89,12 @@ async function ensureSheet(token) {
     id = await findExistingSheet(token);
     if (id) {
       await saveSheetId(id);
+      await ensureHeaders(token, id);
     } else {
       id = await createSheet(token);
       await saveSheetId(id);
-      return id;
     }
+    return id;
   }
 
   const check = await fetch(
@@ -104,8 +105,7 @@ async function ensureSheet(token) {
     const found = await findExistingSheet(token);
     id = found || await createSheet(token);
     await saveSheetId(id);
-  } else {
-    await ensureHeaders(token, id);
+    if (found) await ensureHeaders(token, id);
   }
 
   return id;
@@ -118,7 +118,7 @@ async function getGid(token, sheetId) {
     { headers: authHeaders(token) }
   );
   const data = await res.json();
-  return data.sheets[0].properties.sheetId;
+  return data.sheets.find(s => s.properties.title === SHEET_NAME)?.properties?.sheetId;
 }
 
 // ── CRUD ──────────────────────────────────────────────────
@@ -230,6 +230,72 @@ async function deleteGroup(token, sheetId, groupName, deleteData) {
   }
 }
 
+// ── Password Manager Sheet ────────────────────────────────
+const PM_SHEET_NAME = 'Passwords';
+
+async function ensurePMSheet(token, sheetId) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
+    { headers: authHeaders(token) }
+  );
+  const data = await res.json();
+  if (!data.sheets?.some(s => s.properties.title === PM_SHEET_NAME)) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: PM_SHEET_NAME } } }] })
+    });
+  }
+  // 每次確保標題列正確（含 D1「時間」欄）
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${PM_SHEET_NAME}!A1:D1?valueInputOption=RAW`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ values: [['網站', '帳號', '密碼', '時間']] })
+  });
+}
+
+async function pmReadItems(token, sheetId) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${PM_SHEET_NAME}!A2:D`,
+    { headers: authHeaders(token) }
+  );
+  const data = await res.json();
+  return (data.values || []).map((r, i) => ({
+    row:       i + 2,
+    site:      r[0] || '',
+    account:   r[1] || '',
+    password:  r[2] || '',
+    timestamp: r[3] || ''
+  }));
+}
+
+async function pmAddItem(token, sheetId, site, account, password) {
+  const items = await pmReadItems(token, sheetId);
+  if (items.some(i => i.site === site && i.account === account && i.password === password)) return;
+  const timestamp = new Date().toISOString();
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${PM_SHEET_NAME}!A:D:append?valueInputOption=RAW`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ values: [[site, account, password, timestamp]] })
+  });
+}
+
+async function pmDeleteItem(token, sheetId, row) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
+    { headers: authHeaders(token) }
+  );
+  const data = await res.json();
+  const gid = data.sheets?.find(s => s.properties.title === PM_SHEET_NAME)?.properties?.sheetId;
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({
+      requests: [{ deleteDimension: { range: { sheetId: gid, dimension: 'ROWS', startIndex: row - 1, endIndex: row } } }]
+    })
+  });
+}
+
 // ── 訊息監聽 ──────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message.from || message.to !== 'background.js' || !message.type) { return true; }
@@ -244,6 +310,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         await saveSheetId(null);
         sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
+        return;
+      }
+
+      if (message.type === 'checkAuth') {
+        try {
+          await getToken(false);
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { authed: true } });
+        } catch (_) {
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { authed: false } });
+        }
         return;
       }
 
@@ -282,6 +358,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       } else if (message.type === 'deleteGroup') {
         await deleteGroup(token, sheetId, message.data.groupName, message.data.deleteData);
+        sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
+
+      } else if (message.type === 'pm_list') {
+        await ensurePMSheet(token, sheetId);
+        const items = await pmReadItems(token, sheetId);
+        sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { items } });
+
+      } else if (message.type === 'pm_add') {
+        await ensurePMSheet(token, sheetId);
+        const { site, account, password } = message.data;
+        await pmAddItem(token, sheetId, site, account, password);
+        sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
+
+      } else if (message.type === 'pm_delete') {
+        await ensurePMSheet(token, sheetId);
+        await pmDeleteItem(token, sheetId, message.data.row);
         sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
       }
 

@@ -7,7 +7,15 @@ function getCurrentSiteConfig() {
   const pathname = window.location.pathname;
   const currentUrl = hostname + pathname; // 例如: "cloud.nueip.com/attendance_record"
 
-  const siteConfig = SITE_CONFIGS[hostname];
+  // 優先精確匹配，再找前綴萬用字元 (*.domain.com)
+  let matchedKey = hostname;
+  let siteConfig = SITE_CONFIGS[hostname];
+  if (!siteConfig) {
+    const wildcardKey = Object.keys(SITE_CONFIGS).find(key =>
+      key.startsWith('*.') && hostname.endsWith('.' + key.slice(2))
+    );
+    if (wildcardKey) { siteConfig = SITE_CONFIGS[wildcardKey]; matchedKey = wildcardKey; }
+  }
   if (!siteConfig || !siteConfig.paths || !Array.isArray(siteConfig.paths)) {
     return null;
   }
@@ -30,7 +38,9 @@ function getCurrentSiteConfig() {
       console.log(`[content.js] 找到網站配置: `, config);
       return {
         ...config,
-        hostname
+        hostname,
+        matchedKey,
+        toggleKey: siteConfig.toggleKey
       };
     }
   }
@@ -53,6 +63,37 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 window.addEventListener('message', (event) => {
   const message = event.data;
   if (!message.from || message.to !== 'content.js' || !message.type) { return; }
+
+  // PM UI state：直接在 content.js 存取 storage.local，不需轉發 background
+  if (message.type === 'pm_save_state') {
+    chrome.storage.local.set({ wl_pm_state: message.data });
+    return;
+  }
+  if (message.type === 'pm_get_state') {
+    chrome.storage.local.get(['wl_pm_state'], (result) => {
+      window.postMessage({ from: 'content.js', to: 'password-manager.js', requestId: message.requestId, data: result.wl_pm_state || {} }, '*');
+    });
+    return;
+  }
+
+  // PM bridge：帳密管理訊息中轉至 background.js（inject 腳本在 page world，無法直接呼叫 chrome API）
+  if (message.type.startsWith('pm_')) {
+    new Promise(resolve => {
+      chrome.runtime.sendMessage(
+        { from: 'password-manager.js', to: 'background.js', type: message.type, data: message.data || {} },
+        resolve
+      );
+    }).then(response => {
+      if (message.requestId === null) return; // fire and forget
+      window.postMessage({
+        from: 'content.js',
+        to: 'password-manager.js',
+        requestId: message.requestId,
+        data: response?.data
+      }, '*');
+    });
+    return;
+  }
 
   const currentConfig = getCurrentSiteConfig();
   const currentSiteUrl = currentConfig ? currentConfig.url : null;
@@ -120,13 +161,13 @@ function initialize() {
     // 檢查網站開關狀態
     chrome.storage.local.get(['siteToggles'], (result) => {
       const siteToggles = result.siteToggles || {};
-      const hostname = config.hostname; // 使用 hostname (例如: cloud.nueip.com)
+      const toggleKey = config.toggleKey || config.matchedKey || config.hostname;
 
-      if (siteToggles[hostname] === false) {
-        console.log(`[content.js] 網站 ${hostname} 的擴充功能已關閉 ❌，不注入腳本`);
+      if (siteToggles[toggleKey] === false) {
+        console.log(`[content.js] 網站 ${toggleKey} 的擴充功能已關閉 ❌，不注入腳本`);
         return;
       }
-      console.log(`[content.js] 網站 ${hostname} 的擴充功能已啟用 ✅，開始注入腳本`);
+      console.log(`[content.js] 網站 ${toggleKey} 的擴充功能已啟用 ✅，開始注入腳本`);
       injectScript(config);
     });
   }
