@@ -1,0 +1,11 @@
+{
+  "name": "Worklohas 擴充功能",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsCihY1aZNhRb9Td+fV9cav7ccvemyO2YSnNyaQXJhHNq/o7DLIzxO/hpBDsf2YjYDRL1Ts7+zMQE/UZpi5Sz3SX8TAr1kiHcVJr7z613d5WatqhCx+9Q2jage+23MTLIhw/fTOL86hHe2kjlUnLMc5DVTNhuzqHLJMW5iVtOA5QnP7OLCm4V5+BqS4hCdVXIzwW9HziLOVmpPZPPtUF/Zcv6iWWdQUM8vX2VSEOAvlS0O4rMTt0xvmnIZD8PbvNui96UloWbdVH7V/fVUpndXo58F49WeC+6cDHtm1fwBkmUiwn0Xphy1sVKYBpCtefUvzQzfUUsMQ0XgSvrOHCI1QIDAQAB",
+  "oauth2": {
+    "client_id": "804323187732-ij3lo56bdlhjepngkdqg8h9qi42enbt0.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  }
+}

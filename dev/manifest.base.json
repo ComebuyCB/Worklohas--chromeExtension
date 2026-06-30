@@ -60,14 +60,5 @@
     "storage",
     "clipboardWrite",
     "identity"
-  ],
-  "name": "Worklohas 擴充功能 (dev)",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnbkZnITAjBl37q7HTvbGDh59ReUC8xkL8jpeTmFw8pvxxZsKVEv36nFBoN6YJKckSukskSJAV7QO0Q0K32m/l9EQh3cCjSdzy3vXEgm/CX205DYfLiOCmz9abzcvy16FiFHl2bdzuOBLNZGSXJ9Mo23CRzMX/WAK/mHBuVE/8K/4kUSvYoDb2L5CuFEYpEi2mLewTFDgbWdgfsrfqvfpBea1v7b8nPGQxYCvOL1XahzqdkKvQ/B1fY4SZ/tOXnjQe0BIh1Dp2lAcMXZr3SqgtBX+K4CuWnaTuDn4YeePSd4j1i/16GrPWjt9hiXOaUYOknIwqglfkOrdvUQoeN5izwIDAQAB",
-  "oauth2": {
-    "client_id": "804323187732-i12d3em757ot67fj9muc26micfi6e8ig.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/spreadsheets",
-      "https://www.googleapis.com/auth/drive.file"
-    ]
-  }
+  ]
 }

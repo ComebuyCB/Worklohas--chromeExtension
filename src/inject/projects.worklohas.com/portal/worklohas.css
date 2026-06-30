@@ -2,10 +2,12 @@
 	--detailFieldLabelWidth: 160px;
 	--dtStickyBox: var(--fs60px);
 	--wl-cardHeaderBg: rgb(245,235,215);
+	--detailBaseRadius: 0px;
+	--detailpageHeight: 96vh;
 }
 
 #zpsDetailView { max-width: 1100px; right: 0; left: unset; }
-#zpsDetailView #mainExtContainer { height: 97vh; }
+#zpsDetailView #mainExtContainer { height: 97vh; box-shadow: -2px 0 4px rgba(0,0,0,0.2); }
 #zpsDetailView .detail-container { --dtTabHeaderTop: calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--dtStickyBoxMarginTop) - 2px); }
 
 /* #zpsDetailView #detail-rhs { padding-inline: 24px; } */
@@ -15,10 +17,11 @@
 #zpsDetailView #detailsGreyBar { padding: var(--fs10px) var(--fs16px); }
 #zpsDetailView #layoutSection { margin-bottom: 16px; }
 #zpsDetailView #detailTabMenu { background: var(--wl-cardHeaderBg); }
-#zpsDetailView #tabInlineBlock { margin: 0px -22px; padding: 0px 22px; background: var(--wl-cardHeaderBg); }
+#zpsDetailView #tabInlineBlock { margin: 0px -22px; padding: 0px 22px; }
 #zpsDetailView .module-content-area > .module-content-title { height: var(--fs48px); margin: -12px -15px -4px -15px; padding: 12px 15px;
 	 background: var(--wl-cardHeaderBg); border-radius: var(--detailBlockRadius) var(--detailBlockRadius) 0 0; }
 #zpsDetailView .module-field-container>.detail-field-item[multiline="no"] { width: 49%; }
+#zpsDetailView .detail_rhs .module-tab-content { margin-top: 0px; }
 
 body:not([dir=rtl]) .zps-cell-td { border-left: 1px solid rgba(var(--separatorBdr), 0); }
 body:not([dir=rtl]) .zps-cell-title { border-right: 1px solid rgba(var(--separatorBdr), 0); }
