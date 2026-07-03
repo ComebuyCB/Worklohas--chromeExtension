@@ -1,68 +1,83 @@
 /*=== 通用多網站內容腳本 ===*/
 
+const contentLog = console.log.bind(console, '%c[content.js]%c', 'color:#2196F3;font-weight:bold', '');
 
 // 獲取當前網站配置
 function getCurrentSiteConfig() {
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
-  const currentUrl = hostname + pathname; // 例如: "cloud.nueip.com/attendance_record"
 
-  // 優先精確匹配，再找前綴萬用字元 (*.domain.com)
-  let matchedKey = hostname;
-  let siteConfig = SITE_CONFIGS[hostname];
-  if (!siteConfig) {
-    const wildcardKey = Object.keys(SITE_CONFIGS).find(key =>
-      key.startsWith('*.') && hostname.endsWith('.' + key.slice(2))
-    );
-    if (wildcardKey) { siteConfig = SITE_CONFIGS[wildcardKey]; matchedKey = wildcardKey; }
-  }
-  if (!siteConfig || !siteConfig.paths || !Array.isArray(siteConfig.paths)) {
-    return null;
-  }
+  for (const [siteKey, siteConfig] of Object.entries(SITE_CONFIGS)) {
+    if (!Array.isArray(siteConfig.paths)) continue;
 
-  // 尋找匹配當前路徑的配置
-  for (const config of siteConfig.paths) {
-    const configUrl = config.url;
-    let isMatch = false;
-
-    if (configUrl.endsWith('*')) {
-      // 前綴匹配，若後墜有*時。 (如: cloud.nueip.com/pathname*，那麼也會匹配: cloud.nueip.com/pathname/1。)
-      const urlPrefix = configUrl.slice(0, -1);
-      isMatch = currentUrl.startsWith(urlPrefix);
-    } else {
-      // 精確匹配 (只會匹配 cloud.nueip.com/pathname)
-      isMatch = currentUrl === configUrl;
-    }
-
-    if (isMatch) {
-      console.log(`[content.js] 找到網站配置: `, config);
-      return {
-        ...config,
-        hostname,
-        matchedKey,
-        toggleKey: siteConfig.toggleKey
-      };
+    for (const pathConfig of siteConfig.paths) {
+      if (_matchUrlPattern(hostname, pathname, pathConfig.url)) {
+        contentLog(`找到網站配置: `, pathConfig);
+        return {
+          ...pathConfig,
+          hostname,
+          siteKey,
+          toggleKey: siteConfig.toggleKey || siteKey,
+        };
+      }
     }
   }
 
   return null;
 }
 
+// 比對 hostname + pathname 是否符合 url pattern
+// pattern 格式: "host/path"，host 支援 *.domain 萬用字元，path 支援結尾 * 前綴匹配
+function _matchUrlPattern(hostname, pathname, pattern) {
+  const slashIdx = pattern.indexOf('/');
+  const hostPat = slashIdx === -1 ? pattern : pattern.slice(0, slashIdx);
+  const pathPat = slashIdx === -1 ? '' : pattern.slice(slashIdx + 1);
+
+  // host 比對
+  let hostMatch;
+  if (hostPat.startsWith('*.')) {
+    const domain = hostPat.slice(2);
+    hostMatch = hostname === domain || hostname.endsWith('.' + domain);
+  } else {
+    hostMatch = hostname === hostPat;
+  }
+  if (!hostMatch) return false;
+
+  // path 比對（pathPat 為 pattern 中 / 之後的部分，pathname 去掉開頭 /）
+  if (!pathPat || pathPat === '*') return true;
+
+  const path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+  if (pathPat.endsWith('*')) return path.startsWith(pathPat.slice(0, -1));
+  return path === pathPat;
+}
+
+// 已注入檢查（供 injectScript 與 SPA observer 共用）
+const JQUERY_SCRIPT = 'static/plugins/jquery-3.6.4/jquery.min.js';
+const COMMON_SCRIPT = 'src/inject/_common/common.js';
+const COMMON_CSS = 'src/inject/_common/common.css';
+
+// 組出該 config 實際要注入的腳本清單，jQuery 需在 inject-config.js 該路徑的 features 加入 'jquery' 才會注入
+function _getInjectScripts(config) {
+  const scripts = [COMMON_SCRIPT, ...(config.inject?.js || [])];
+  if (config.features?.includes('jquery')) scripts.unshift(JQUERY_SCRIPT);
+  return scripts;
+}
+
+function _isAlreadyInjected(config) {
+  const allScripts = _getInjectScripts(config);
+  return allScripts.some(f => document.querySelector(`script[src="${chrome.runtime.getURL(f)}"]`));
+}
+
 // 監聽來自其他組件的消息
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   if (!message.from || message.to !== 'content.js' || !message.type) { return true; }
-
-  const currentConfig = getCurrentSiteConfig();
-  const currentSiteUrl = currentConfig ? currentConfig.url : null;
-  // ...
-
   return true; // 保持消息通道開啟
 });
 
 // 監聽來自注入腳本(inject/*)的消息
 window.addEventListener('message', (event) => {
   const message = event.data;
-  if (!message.from || message.to !== 'content.js' || !message.type) { return; }
+  if (!message?.from || message.to !== 'content.js' || !message?.type) { return; }
 
   // PM UI state：直接在 content.js 存取 storage.local，不需轉發 background
   if (message.type === 'pm_save_state') {
@@ -71,7 +86,7 @@ window.addEventListener('message', (event) => {
   }
   if (message.type === 'pm_get_state') {
     chrome.storage.local.get(['wl_pm_settings'], (result) => {
-      window.postMessage({ from: 'content.js', to: 'password-manager.js', requestId: message.requestId, data: result.wl_pm_settings || {} }, '*');
+      window.postMessage({ from: 'content.js', to: message.from, requestId: message.requestId, data: result.wl_pm_settings || {} }, '*');
     });
     return;
   }
@@ -80,14 +95,14 @@ window.addEventListener('message', (event) => {
   if (message.type.startsWith('pm_')) {
     new Promise(resolve => {
       chrome.runtime.sendMessage(
-        { from: 'password-manager.js', to: 'background.js', type: message.type, data: message.data || {} },
+        { from: message.from, to: 'background.js', type: message.type, data: message.data || {} },
         resolve
       );
     }).then(response => {
       if (message.requestId === null) return; // fire and forget
       window.postMessage({
         from: 'content.js',
-        to: 'password-manager.js',
+        to: message.from,
         requestId: message.requestId,
         data: response?.data
       }, '*');
@@ -95,113 +110,82 @@ window.addEventListener('message', (event) => {
     return;
   }
 
+  // 通用 onMessage dispatch → 由 inject-config.js 的 path config 宣告處理邏輯
   const currentConfig = getCurrentSiteConfig();
-  const currentSiteUrl = currentConfig ? currentConfig.url : null;
-
-  // 檢查網站匹配 - message.from 現在應該是完整的 url
-  if (!currentSiteUrl || message.from !== currentSiteUrl) {
-    return;
-  }
-
-  if (message.type === 'SAVE_SELECT_VALUES') {
-    console.log(`[content.js] ${message.from}: SAVE_SELECT_VALUES → @content.js`);
-    chrome.storage.local.set({ nueip_punch_settings: message.data.nueip_punch_settings });
+  if (currentConfig?.onMessage?.[message.type]) {
+    currentConfig.onMessage[message.type](message.data);
   }
 });
 
 // 注入腳本和樣式
 function injectScript(config) {
-  const commonScript = 'src/inject/_common/wl-common.js';
-  const allScripts = [commonScript, ...(config.inject?.js || [])];
+  if (_isAlreadyInjected(config)) return;
 
-  // 若任一 JS 已存在於 DOM，代表已注入過，跳過（SPA 換頁保護）
-  const alreadyInjected = allScripts.some(f =>
-    document.querySelector(`script[src="${chrome.runtime.getURL(f)}"]`)
-  );
-  if (alreadyInjected) return;
-
-  // 注入樣式 <link rel="stylesheet" href="...">
-  config.inject?.css?.forEach(styleFile => {
+  const allStyles = [COMMON_CSS, ...(config.inject?.css || [])];
+  allStyles.forEach(styleFile => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = chrome.runtime.getURL(styleFile);
     document.body.appendChild(link);
   });
+
+  const allScripts = _getInjectScripts(config);
+
   allScripts.forEach((scriptFile, index) => {
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL(scriptFile);
+    script.async = false; // 保證依插入順序依序執行（jQuery → common.js → 各站點腳本）
 
-    if (index === allScripts.length - 1) { // 最後一個腳本載入完成後發送初始化消息
+    if (index === allScripts.length - 1) {
       script.onload = function() {
-        // 特殊處理
-        if (config.url === 'cloud.nueip.com/attendance_record') {
-          chrome.storage.local.get(['nueip_punch_settings'], (result) => {
-            window.postMessage({
-              from: 'content.js',
-              to: config.url,
-              type: 'INIT',
-              data: {
-                nueip_punch_settings: result.nueip_punch_settings
-              }
-            }, '*');
-          });
-        } else {
-          // 一般初始化消息
-          window.postMessage({
-            from: 'content.js',
-            to: config.url,
-            type: 'INIT',
-            data: {}
-          }, '*');
-        }
+        const send = (data = {}) => window.postMessage(
+          { from: 'content.js', to: config.url, type: 'INIT', data }, '*'
+        );
+        config.init ? config.init(send) : send();
       };
     }
-    
+
     document.body.appendChild(script);
-  })
+  });
 }
 
 // 主要初始化函數
 function initialize() {
   const config = getCurrentSiteConfig();
   if (config) {
-    // 檢查網站開關狀態
     chrome.storage.local.get(['siteToggles'], (result) => {
       const siteToggles = result.siteToggles || {};
-      const toggleKey = config.toggleKey || config.matchedKey || config.hostname;
+      const toggleKey = config.toggleKey;
 
       if (siteToggles[toggleKey] === false) {
-        console.log(`[content.js] 網站 ${toggleKey} 的擴充功能已關閉 ❌，不注入腳本`);
+        contentLog(`網站 ${toggleKey} 的擴充功能已關閉 ❌，不注入腳本`);
         return;
       }
-      console.log(`[content.js] 網站 ${toggleKey} 的擴充功能已啟用 ✅，開始注入腳本`);
+      contentLog(`網站 ${toggleKey} 的擴充功能已啟用 ✅，開始注入腳本`);
       injectScript(config);
     });
   }
 }
 initialize();
 
-// 監聽 URL 變化（適用於 SPA 應用）
-let lastUrl = location.href;
-new MutationObserver(() => {
-  const url = location.href;
-  if (url !== lastUrl) {
-    lastUrl = url;
-    setTimeout(() => {
-      const config = getCurrentSiteConfig();
-      if (!config) return;
+// 只有該路徑 features 含 'spa' 才掛 URL 變化監聽
+const _initialConfig = getCurrentSiteConfig();
+if (_initialConfig?.features?.includes('spa')) {
+  let lastUrl = location.href;
+  new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+      lastUrl = url;
+      setTimeout(() => {
+        const config = getCurrentSiteConfig();
+        if (!config) return;
 
-      const commonScript = 'src/inject/_common/wl-common.js';
-      const allScripts = [commonScript, ...(config.inject?.js || [])];
-      const alreadyInjected = allScripts.some(f =>
-        document.querySelector(`script[src="${chrome.runtime.getURL(f)}"]`)
-      );
-
-      if (alreadyInjected) {
-        window.postMessage({ from: 'content.js', to: config.url, type: 'UPDATE', data: {} }, '*');
-      } else {
-        initialize();
-      }
-    }, 1000);
-  }
-}).observe(document, {subtree: true, childList: true});
+        if (_isAlreadyInjected(config)) {
+          window.postMessage({ from: 'content.js', to: config.url, type: 'UPDATE', data: {} }, '*');
+        } else {
+          initialize();
+        }
+      }, 1000);
+    }
+  }).observe(document, { subtree: true, childList: true });
+}

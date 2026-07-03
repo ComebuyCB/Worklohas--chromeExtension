@@ -1,7 +1,7 @@
 :root {
 	--detailFieldLabelWidth: 160px;
 	--dtStickyBox: var(--fs60px);
-	--wl-cardHeaderBg: rgb(245,235,215);
+	--wl-cardHeaderBg: color-mix(in srgb, #EE7A1E 25%, white 75%);
 	--detailBaseRadius: 0px;
 	--detailpageHeight: 96vh;
 }

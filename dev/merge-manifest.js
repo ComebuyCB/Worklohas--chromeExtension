@@ -1,17 +1,28 @@
 // merge-manifest.js <env>
 // env: dev | prod
-const env  = process.argv[2];
-const path = require('path');
-const fs   = require('fs');
+// 以 manifest.json 為 base，套用 manifest.<env>.patch.json
+// patch value 為 null → 移除該 key
+const env     = process.argv[2];
+const path    = require('path');
+const fs      = require('fs');
 
+const rootDir = path.resolve(__dirname, '..');
 const devDir  = __dirname;
-const rootDir = path.resolve(devDir, '..');
 
-const base  = JSON.parse(fs.readFileSync(path.join(devDir, 'manifest.base.json'),          'utf8'));
-const patch = JSON.parse(fs.readFileSync(path.join(devDir, `manifest.${env}.patch.json`),  'utf8'));
+const base  = JSON.parse(fs.readFileSync(path.join(rootDir, 'manifest.json'),                'utf8'));
+const patch = JSON.parse(fs.readFileSync(path.join(devDir,  `manifest.${env}.patch.json`),  'utf8'));
+
+const result = { ...base };
+for (const [key, value] of Object.entries(patch)) {
+  if (value === null) {
+    delete result[key];
+  } else {
+    result[key] = value;
+  }
+}
 
 fs.writeFileSync(
   path.join(rootDir, 'manifest.json'),
-  JSON.stringify(Object.assign(base, patch), null, 2),
+  JSON.stringify(result, null, 2),
   'utf8'
 );

@@ -4,7 +4,7 @@ $('body').append(`
     <div id="WL_toggle">
       <i class="fa fa-chevron-up"></i>
     </div>
-    <div id="WL_content" style="margin-top: 20px;">
+    <div id="WL_content" style="margin-top: 8px;">
       <div class="wl-input-group">
         <label class="wl-input-label">上班時間</label>
         <div class="wl-input-row">
@@ -29,12 +29,27 @@ $('body').append(`
           <span>分鐘</span>
         </div>
       </div>
+      <div class="wl-input-group">
+        <label class="wl-input-row" style="width: fit-content;">
+          <input type="checkbox" id="WL_includeLeaveOvertime">
+          <span>包含請假/加班</span>
+        </label>
+      </div>
     </div>
     <button id="WL_submitPunch" class="btn btn-danger btn-sm" style="width: 100%;">
-      <i class="fa fa-plus"></i> 自動補卡
+      <i class="fa fa-plus"></i> 快速補卡
     </button>
   </div>
 `);
+
+var WL_selectValues = {
+  startTime: '09:59',
+  endTime: '19:01',
+  startRandom: '10',
+  endRandom: '10',
+  includeLeaveOvertime: false,
+  collapsed: false
+}
 
 // 添加切換功能
 $(document).on('click', '#WL_toggle', function() {
@@ -42,37 +57,42 @@ $(document).on('click', '#WL_toggle', function() {
   const $icon = $(this).find('i');
   const $btn = $('#WL_submitPunch');
   const $fixed = $('#WL_fixed');
-  
+
+  let collapsed;
   if ($content.is(':visible')) {
     $content.slideUp();
     $icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
     $btn.css('width', 'auto');
     $fixed.css('width', 'auto');
+    collapsed = true;
   } else {
     $content.slideDown();
     $icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
     $btn.css('width', '100%');
     $fixed.css('width', '');
+    collapsed = false;
+  }
+
+  WL_selectValues = { ...WL_selectValues, collapsed };
+  window.postMessage({
+    from: 'cloud.nueip.com/attendance_record',
+    to: 'content.js',
+    type: 'SAVE_SELECT_VALUES',
+    data: {
+      nueip_punch_settings: WL_selectValues
+    }
+  }, '*');
+});
+
+wlMessage({
+  INIT(event) {
+    restoreSettingsFromStorage(event.data.data.nueip_punch_settings);
   }
 });
 
-// 監聽來自 content.js 的消息
-window.addEventListener('message', (event) => {
-  const message = event.data;
-  if (event.source !== window) return;
-  
-  // 檢查消息格式和目標
-  if (!message?.from || !message?.type || message.to !== 'cloud.nueip.com/attendance_record') return;
-
-  if (message.type === 'INIT') {
-    wlLog(`content.js: INIT → @[${message.to}]`);
-    initializeSelectValues(message.data.nueip_punch_settings);
-  }
-});
-
-// 初始化時間輸入值
-function initializeSelectValues(values) {
-  wlLog('📂 initializeSelectValues', values);
+// 用 content.js 從 local storage 取回的設定值，還原整個介面狀態
+function restoreSettingsFromStorage(values) {
+  wlLog('📂 restoreSettingsFromStorage', values);
   if (values) {
     // 設定時間輸入框，如果有儲存的值則使用，否則使用預設值
     if (values.startTime) {
@@ -83,14 +103,18 @@ function initializeSelectValues(values) {
     }
     $('#WL_startRandom').val(values.startRandom || '10');
     $('#WL_endRandom').val(values.endRandom || '10');
-  }
-}
+    $('#WL_includeLeaveOvertime').prop('checked', !!values.includeLeaveOvertime);
 
-var WL_selectValues = {
-  startTime: '10:00',
-  endTime: '19:00',
-  startRandom: '10',
-  endRandom: '10'
+    // 還原收合狀態，不做展開/收合動畫
+    if (values.collapsed) {
+      $('#WL_content').hide();
+      $('#WL_toggle').find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+      $('#WL_submitPunch').css('width', 'auto');
+      $('#WL_fixed').css('width', 'auto');
+    }
+
+    WL_selectValues = { ...WL_selectValues, ...values };
+  }
 }
 
 // 監聽按鈕點擊
@@ -99,7 +123,8 @@ $(document).on('click', '#WL_submitPunch', function() {
     startTime: $('#WL_startTime').val(),
     endTime: $('#WL_endTime').val(),
     startRandom: $('#WL_startRandom').val(),
-    endRandom: $('#WL_endRandom').val()
+    endRandom: $('#WL_endRandom').val(),
+    includeLeaveOvertime: $('#WL_includeLeaveOvertime').is(':checked')
   };
 
   if ( punchSettings.startTime === '' ||
@@ -122,40 +147,56 @@ $(document).on('click', '#WL_submitPunch', function() {
     }
   }, '*');
 
-  autoCheckIn(); // 執行自動打卡
+  // WL_AttendanceData 只有在執行「查詢」時才會更新，補卡前先重新查詢一次，避免拿到手動打卡前的舊資料
+  wlLog('🔄 補卡前重新查詢出勤資料...');
+  $.when(loadingData("attendance")).then(() => {
+    autoCheckIn(); // 執行自動打卡
+  });
 });
+
+// 判斷該日 punch 是否已有指定 section 的打卡紀錄
+// punch 沒有任何打卡時是 []，有打卡時會變成 { onPunch: [...], offPunch: [...] } 物件（型別不一致，兩種都要判斷）
+function hasPunchSection(punch, key) {
+  return !Array.isArray(punch) && punch?.[key]?.length > 0;
+}
 
 // 自動打卡功能
 function autoCheckIn(){
+  const attendanceData = window.WL_AttendanceData?.data;
+  if (!attendanceData) {
+    alert('尚未取得出勤資料，請稍後再試');
+    return;
+  }
+
   const date_today = new Date().toISOString().split('T')[0];
-  const $TR = $('#body-wrapper #table_content').children('tbody').children('tr');
-  const U_SN = $TR.children('td').eq(0).attr('class').split(' ').find((val)=>(/sn\d\d\d\d\d\d/g).test(val))?.replace('sn','');
-  
+  const { startTime: targetStartTime, endTime: targetEndTime, startRandom, endRandom, includeLeaveOvertime } = WL_selectValues;
+
   const ajaxArray = [];
 
-  $.each($TR, function(trIdx, trVal){
-    /*=== 檢查日期，未來或休假 ===*/
-    let TR_hasBG = $(trVal).attr('class').split(' ').some((val)=> (/bg_color/g).test(val));
-    let TR_date = $.trim($(trVal).children('td[data-th="日期"]').find('.dateday')?.text());
-    if (date_today < TR_date || TR_hasBG === true){
-      return true;
-    }
+  Object.entries(attendanceData).forEach(([date, usersOnDate]) => {
+    const dayData = Object.values(usersOnDate)[0]; // 個人出勤查詢，每個日期只會有自己一筆
+    if (!dayData) return;
+
+    const U_SN = dayData.user?.u_sn;
+
+    /*=== 跳過未來日期 / 假日（date_off 已涵蓋週末與國定假日）===*/
+    if (date_today < date || dayData.dateInfo?.date_off === true) return;
+
+    /*=== 未勾選「打卡包含請假或加班」時，該日只要有加班前/加班/請假紀錄就整天略過 ===*/
+    if (!includeLeaveOvertime && (dayData.preovertime || dayData.overtime || dayData.timeoff)) return;
 
     /*=== 時間打卡，上班和下班 ===*/
-    let th_startTime = $.trim($(trVal).children('td[data-th="上班"]')?.text());
-    let th_endTime = $.trim($(trVal).children('td[data-th="下班"]')?.text());
+    const punch = dayData.punch;
 
-    const { startTime: targetStartTime, endTime: targetEndTime, startRandom, endRandom } = WL_selectValues;
-
-    if (th_startTime.length === 0){ // 補卡 (上班)
+    if (!hasPunchSection(punch, 'onPunch')){ // 補卡 (上班)
       let {hour, min} = getRdHourMin(targetStartTime, startRandom, "上班");
-      let postData = { section: 1, hour, min, remark: '補卡', u_sn: U_SN, date: TR_date, apply_date: TR_date, }
+      let postData = { section: 1, hour, min, remark: '補卡', u_sn: U_SN, date, apply_date: date, }
       ajaxArray.push( promiseAjax(postData) );
     }
 
-    if (th_endTime.length === 0){ // 補卡 (下班)
+    if (!hasPunchSection(punch, 'offPunch')){ // 補卡 (下班)
       let {hour, min} = getRdHourMin(targetEndTime, endRandom, "下班");
-      let postData = { section: 2, hour, min, remark: '補卡', u_sn: U_SN, date: TR_date, apply_date: TR_date, }
+      let postData = { section: 2, hour, min, remark: '補卡', u_sn: U_SN, date, apply_date: date, }
       ajaxArray.push( promiseAjax(postData) );
     }
   });
@@ -165,8 +206,9 @@ function autoCheckIn(){
     executeAjaxSequentially(ajaxArray).then((res)=>{
       wlLog('✅ 補卡結果', res);
       let successVals = res.filter((e)=> e?.code === 200);
-      alert('自動打卡完畢! '+ '共'+ successVals.length +'筆。');
-      window.location.reload();
+      if (confirm('自動打卡完畢! 共'+ successVals.length +'筆。\n點擊確定更新頁面。')) {
+        window.location.reload();
+      }
     });
   } else {
     alert('沒有需要補卡的記錄');
@@ -256,8 +298,8 @@ function loadingData(t, e) {
   var i = "action=" + t + "&loadInBatch=" + loadInBatch + "&loadBatchGroupNum=" + loadBatchGroupNum + "&loadBatchNumber=" + e + "&work_status=" + n,
       r = $("[name='ajax_url']").val();
   loadBatchSend[e] = $.post(r, i, (function(a) {
-    wlLog('📊 NUEIP 出勤資料', a); //// CB
     window.WL_AttendanceData = a; //// CB
+    wlLog('📊 NUEIP 出勤資料', WL_AttendanceData); //// CB
     return 1 === e && (dataQuantity = 0, $.each(a.data, (function(t, e) {
       if ($.each(e, (function(t, e) {
         dataQuantity++
@@ -278,4 +320,5 @@ function loadingData(t, e) {
   })).error((function(t, n, l) {
     1 === e && Nueip.mask.end(o, a), console.log(l)
   }))
+  return loadBatchSend[e]; //// CB：回傳查詢的 jqXHR，供補卡前重新查詢完成後再繼續
 }

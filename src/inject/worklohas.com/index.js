@@ -56,7 +56,7 @@ class PasswordManager {
   }
 
   _saveState() {
-    window.postMessage({ from: 'password-manager.js', to: 'content.js', type: 'pm_save_state', requestId: null, data: this._uiState }, '*')
+    window.postMessage({ from: 'index.js', to: 'content.js', type: 'pm_save_state', requestId: null, data: this._uiState }, '*')
   }
 
   _clampPosition() {
@@ -101,7 +101,7 @@ class PasswordManager {
     sessionStorage.removeItem('__wl_pm_pending__')
     try {
       const { site, account, password } = JSON.parse(raw)
-      window.postMessage({ from: 'password-manager.js', to: 'content.js', type: 'pm_add', requestId: null, data: { site, account, password } }, '*')
+      window.postMessage({ from: 'index.js', to: 'content.js', type: 'pm_add', requestId: null, data: { site, account, password } }, '*')
     } catch (_) {}
   }
 
@@ -352,12 +352,12 @@ class PasswordManager {
 
       const handler = (event) => {
         const msg = event.data
-        if (!msg?.from || msg.from !== 'content.js' || msg.to !== 'password-manager.js' || msg.requestId !== requestId) return
+        if (!msg?.from || msg.from !== 'content.js' || msg.to !== 'index.js' || msg.requestId !== requestId) return
         done(msg.data)
       }
       window.addEventListener('message', handler)
 
-      window.postMessage({ from: 'password-manager.js', to: 'content.js', type, requestId, data }, '*')
+      window.postMessage({ from: 'index.js', to: 'content.js', type, requestId, data }, '*')
     })
   }
 }

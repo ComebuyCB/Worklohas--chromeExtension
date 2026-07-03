@@ -8,29 +8,68 @@
     body { max-width: 540px; margin-inline: auto; padding: 20px; font-family: Arial, sans-serif; line-height: 1.5; color: #333; }
     h1 { font-size: 1.8rem; }
     h2 { font-size: 1.4rem; margin-block: 2rem 1rem; }
+    h3 { font-size: 1.1rem; margin-block: 1.2rem 0.5rem; }
     p { margin-block: 0.5rem; }
+    ul { margin-block: 0.5rem; padding-left: 1.4rem; }
+    li { margin-block: 0.3rem; }
+    strong { color: #c0392b; }
   </style>
 </head>
 <body>
   <h1>隱私權政策</h1>
-  <p>最後更新：2026 年 6 月 25 日</p>
-  <p>本擴充功能（Worklohas 的擴充功能）僅供 Worklohas 團隊內部使用。</p>
+  <p>最後更新：2026 年 7 月 3 日</p>
+  <p>本擴充功能（Worklohas 的擴充功能）提供多項獨立功能，其中<strong>剪貼簿</strong>與<strong>帳密管理</strong>功能需透過 Google OAuth 登入，且僅對 <strong>@worklohas.com</strong> 網域的 Google 帳號生效；非 Worklohas 團隊成員即使安裝本擴充功能，也無法通過身份驗證使用這兩項功能。</p>
+  <p>其餘功能——NUEIP 快速打卡、591 租屋網表格化、Worklohas Portal 介面樣式——不需要 Google 登入，任何安裝本擴充功能的使用者皆可直接使用。</p>
 
   <h2>收集的資料</h2>
-  <p>本擴充功能透過 Google OAuth 2.0 取得使用者的 Google 帳號資訊（電子郵件地址），僅用於驗證身份並存取該使用者自己的 Google Sheets 資料。</p>
-  <p>本擴充功能僅對 <strong>@worklohas.com</strong> 網域的 Google 帳號生效。非 Worklohas 團隊成員即使安裝本擴充功能，亦無法通過身份驗證並使用相關功能。</p>
+
+  <h3>1. Google 帳號資訊</h3>
+  <p>透過 Google OAuth 2.0 取得使用者的 Google 帳號 email，僅用於驗證身份。</p>
+
+  <h3>2. 剪貼簿資料</h3>
+  <p>使用者於擴充功能內手動新增的標題、內容、群組等文字資料。</p>
+
+  <h3>3. 帳號密碼資料（帳密管理功能）</h3>
+  <p>當使用者於 <strong>*.worklohas.com</strong> 或 <strong>*.worklohas.dev</strong> 網域的頁面上出現登入表單時，本擴充功能會顯示帳密管理面板；使用者送出表單登入時，會<strong>自動擷取該表單的帳號與密碼</strong>並提示儲存，供日後於相同網站快速填入使用。</p>
+  <p><strong>密碼目前以明文形式儲存，未經加密</strong>，僅透過使用者自己的 Google 帳號存取權限保護。</p>
+
+  <h3>4. NUEIP 出勤資料</h3>
+  <p>於 <strong>cloud.nueip.com</strong> 出勤紀錄頁面，讀取該頁面顯示的出勤資料（如上下班時間、請假、加班紀錄），用於判斷是否需要自動送出補卡申請。此資料僅在瀏覽器與 NUEIP 網站之間讀寫，不會傳送至 Google 或任何其他第三方。</p>
+
+  <h3>5. 本機偏好設定</h3>
+  <p>各網站功能開關、自動補卡時間偏好、帳密管理面板位置與收合狀態、Google 試算表 ID 快取等介面設定，僅儲存於使用者瀏覽器的本機儲存空間（chrome.storage.local），不會離開使用者裝置。</p>
 
   <h2>資料用途</h2>
   <ul>
-    <li>驗證使用者為授權的團隊成員</li>
+    <li>驗證使用者為授權的 Worklohas 團隊成員</li>
     <li>讀寫使用者個人 Google Sheets 中的剪貼簿資料</li>
+    <li>儲存與自動填入使用者於 worklohas.com / worklohas.dev 網域的帳號密碼</li>
+    <li>讀取 NUEIP 出勤資料以提供自動補卡功能</li>
+    <li>記住使用者的介面偏好設定，改善使用體驗</li>
   </ul>
 
   <h2>資料儲存與分享</h2>
   <ul>
-    <li>本擴充功能不會將任何資料傳送至第三方伺服器</li>
-    <li>所有資料僅在使用者的裝置與 Google 服務之間傳輸</li>
-    <li>本擴充功能不收集、不儲存、不出售任何個人資料</li>
+    <li>剪貼簿資料與帳號密碼資料，皆儲存於<strong>使用者自己的 Google 試算表</strong>（分別位於 ClipBoard、Passwords 分頁），Worklohas 團隊或本擴充功能開發者皆無法存取該試算表</li>
+    <li>本擴充功能透過 Google Sheets API 讀寫上述試算表內容，並透過 Google Drive API（<code>drive.file</code> 權限範圍）搜尋或建立該試算表檔案——此權限範圍僅限本擴充功能自己建立或開啟過的檔案，無法讀取使用者雲端硬碟中的其他檔案</li>
+    <li>NUEIP 出勤資料僅在使用者瀏覽器與 cloud.nueip.com 之間傳輸，不會經過 Google 或任何第三方伺服器</li>
+    <li>本機偏好設定僅存於使用者瀏覽器的 chrome.storage.local，不會上傳或分享</li>
+    <li>本擴充功能不會將任何資料傳送至 Worklohas 以外的第三方伺服器，也不會出售任何使用者資料</li>
+  </ul>
+
+  <h2>使用者資料管理</h2>
+  <ul>
+    <li>帳密管理面板中的每筆帳密皆可由使用者自行刪除</li>
+    <li>使用者可直接於 Google 試算表中編輯或刪除剪貼簿與帳密資料</li>
+    <li>於擴充功能內登出 Google 帳號，將清除本機快取的試算表 ID；移除擴充功能則會清除所有本機偏好設定</li>
+  </ul>
+
+  <h2>使用權限說明</h2>
+  <ul>
+    <li><strong>storage</strong>：儲存前述本機偏好設定</li>
+    <li><strong>identity</strong>：處理 Google OAuth 登入與權杖管理</li>
+    <li><strong>clipboardWrite</strong>：將剪貼簿項目內容複製到使用者剪貼簿</li>
+    <li><strong>host permissions</strong>（nueip.com、rent.591.com.tw、worklohas.com、worklohas.dev、Google APIs）：僅用於在對應網站注入上述功能，不會存取其他網站內容</li>
   </ul>
 
   <h2>聯絡方式</h2>

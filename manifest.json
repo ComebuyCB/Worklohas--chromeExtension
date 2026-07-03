@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "version": "1.630.1",
+  "version": "1.703.1",
   "description": "快速打卡 | 複製內文 | 改變網站樣式 | 測試站帳密儲存與填入",
   "action": {
     "default_popup": "src/popup/popup.html",
@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://cloud.nueip.com/*",
+        "https://*.nueip.com/*",
         "https://rent.591.com.tw/*",
         "https://projects.worklohas.com/*",
         "https://*.worklohas.com/*",
@@ -29,13 +29,13 @@
       ],
       "js": [
         "static/plugins/jquery-3.6.4/jquery.min.js",
-        "src/inject/sites.js",
+        "src/inject-config.js",
         "src/content.js"
       ]
     }
   ],
   "host_permissions": [
-    "https://cloud.nueip.com/*",
+    "https://*.nueip.com/*",
     "https://rent.591.com.tw/*",
     "https://*.worklohas.com/*",
     "https://*.worklohas.dev/*",
@@ -45,10 +45,11 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "src/inject/**/*"
+        "src/inject/**/*",
+        "static/plugins/jquery-3.6.4/jquery.min.js"
       ],
       "matches": [
-        "https://cloud.nueip.com/*",
+        "https://*.nueip.com/*",
         "https://rent.591.com.tw/*",
         "https://projects.worklohas.com/*",
         "https://*.worklohas.com/*",
@@ -62,12 +63,12 @@
     "identity"
   ],
   "name": "Worklohas 擴充功能 (dev)",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnbkZnITAjBl37q7HTvbGDh59ReUC8xkL8jpeTmFw8pvxxZsKVEv36nFBoN6YJKckSukskSJAV7QO0Q0K32m/l9EQh3cCjSdzy3vXEgm/CX205DYfLiOCmz9abzcvy16FiFHl2bdzuOBLNZGSXJ9Mo23CRzMX/WAK/mHBuVE/8K/4kUSvYoDb2L5CuFEYpEi2mLewTFDgbWdgfsrfqvfpBea1v7b8nPGQxYCvOL1XahzqdkKvQ/B1fY4SZ/tOXnjQe0BIh1Dp2lAcMXZr3SqgtBX+K4CuWnaTuDn4YeePSd4j1i/16GrPWjt9hiXOaUYOknIwqglfkOrdvUQoeN5izwIDAQAB",
   "oauth2": {
     "client_id": "804323187732-i12d3em757ot67fj9muc26micfi6e8ig.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/drive.file"
     ]
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnbkZnITAjBl37q7HTvbGDh59ReUC8xkL8jpeTmFw8pvxxZsKVEv36nFBoN6YJKckSukskSJAV7QO0Q0K32m/l9EQh3cCjSdzy3vXEgm/CX205DYfLiOCmz9abzcvy16FiFHl2bdzuOBLNZGSXJ9Mo23CRzMX/WAK/mHBuVE/8K/4kUSvYoDb2L5CuFEYpEi2mLewTFDgbWdgfsrfqvfpBea1v7b8nPGQxYCvOL1XahzqdkKvQ/B1fY4SZ/tOXnjQe0BIh1Dp2lAcMXZr3SqgtBX+K4CuWnaTuDn4YeePSd4j1i/16GrPWjt9hiXOaUYOknIwqglfkOrdvUQoeN5izwIDAQAB"
 }

@@ -3,4 +3,3 @@ dist/
 .vscode/
 .claude/
 *.bak
-dev/*.pem

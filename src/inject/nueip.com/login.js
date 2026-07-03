@@ -2,11 +2,8 @@
 
 wlLog('NUEIP Login Script Loaded');
 
-window.addEventListener('message', (event) => {
-  const message = event.data;
-  if (!message?.from || !message?.type || message.to !== 'cloud.nueip.com/login') return;
-
-  if (message.type === 'INIT') {
+wlMessage({
+  INIT() {
     initializeLoginPage();
   }
 });

@@ -9,6 +9,10 @@ function send(type, data = {}) {
 
 $(function () {
 
+  // 標題顯示 manifest 的名稱與版本
+  const manifest = chrome.runtime.getManifest();
+  $('#app-title').text(`${manifest.name} ${manifest.version}`);
+
   // 初始化：檢查登入狀態
   send('checkAuth').then(res => {
     setAuthUI(res?.data?.authed === true);
