@@ -1,34 +1,45 @@
 :root {
 	--detailFieldLabelWidth: 160px;
 	--dtStickyBox: var(--fs60px);
-	--wl-cardHeaderBg: color-mix(in srgb, #EE7A1E 25%, white 75%);
+	--wl-color-700: #EE7A1E;
+	--wl-color-400: #F5A561;
+	--wl-color-100: #FAD4B0;
 	--detailBaseRadius: 0px;
 	--detailpageHeight: 96vh;
+	--zpOnMLTHeaderBdr: 234, 234, 234;
 }
 
-#zpsDetailView { max-width: 1100px; right: 0; left: unset; }
-#zpsDetailView #mainExtContainer { height: 97vh; box-shadow: -2px 0 4px rgba(0,0,0,0.2); }
-#zpsDetailView .detail-container { --dtTabHeaderTop: calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--dtStickyBoxMarginTop) - 2px); }
+/*=== List ===*/
+	body:not([dir=rtl]) .zps-cell-td { border-left-color: rgba(var(--sheetTableBdr), 0.15); }
+	body:not([dir=rtl]) .zps-cell-title { border-right-color: rgba(var(--separatorBdr), 0.15); }
+	body:not([dir=rtl]) .zps-cell-title ~ td { border-left-color: rgba(var(--separatorBdr), 0.15); }
+	.table-group-header { font-weight: 500; color: #222; }
+	.table-group-header .mlt-app-itemname { color: #222; }
+	.table-group-list { margin-bottom: 16px; }
+	.mlt-add-row .zps-cell-td { border: none !important; }
+	.zps-cell-group-bg { background-color: #E9F0F9 !important; }
+	.zps-MLT-sheet .mlt-status-parent { height: 90%; width: calc(100% + var(--rowCellPad) * 1.5); margin: 0 calc(-0.75 * var(--rowCellPad)); }
 
-/* #zpsDetailView #detail-rhs { padding-inline: 24px; } */
-#zpsDetailView .detail-block-area { margin-top: 12px; }
-#zpsDetailView .detail-block-area editor-data { max-height: unset; }
-#zpsDetailView .module-content-area { padding: var(--fs12px) var(--fs16px); }
-#zpsDetailView #detailsGreyBar { padding: var(--fs10px) var(--fs16px); }
-#zpsDetailView #layoutSection { margin-bottom: 16px; }
-#zpsDetailView #detailTabMenu { background: var(--wl-cardHeaderBg); }
-#zpsDetailView #tabInlineBlock { margin: 0px -22px; padding: 0px 22px; }
-#zpsDetailView .module-content-area > .module-content-title { height: var(--fs48px); margin: -12px -15px -4px -15px; padding: 12px 15px;
-	 background: var(--wl-cardHeaderBg); border-radius: var(--detailBlockRadius) var(--detailBlockRadius) 0 0; }
-#zpsDetailView .module-field-container>.detail-field-item[multiline="no"] { width: 49%; }
-#zpsDetailView .detail_rhs .module-tab-content { margin-top: 0px; }
+/*=== 詳細頁 ===*/
+	#zpsDetailView { max-width: 1100px; right: 0; left: unset; }
+	#zpsDetailView #mainExtContainer { height: 97vh; box-shadow: -2px 0 4px rgba(0,0,0,0.2); }
+	#zpsDetailView #mainExtContainer .detail-container { --dtTabHeaderTop: calc(var(--dtTitleHeight) + var(--dtQuicklinkHeight) + var(--dtStickyBox) + var(--dtStickyBoxMarginTop) - 2px); }
+	/* #zpsDetailView main#detail-rhs { padding-inline: 24px; } */
+	
+	#zpsDetailView #layoutSection { margin-bottom: 16px; }
+	#zpsDetailView #detailsGreyBar { padding: var(--fs10px) var(--fs16px); }
+	#zpsDetailView .detail-block-area { margin-top: 12px; }
+	#zpsDetailView .detail-block-area editor-data { max-height: unset; }
+	#zpsDetailView .module-content-area { padding: var(--fs12px) var(--fs16px); }
+	#zpsDetailView .module-content-area > .module-content-title { height: var(--fs48px); margin: -12px -15px -4px -15px; padding: 12px 15px; background: var(--wl-color-100); border-radius: var(--detailBlockRadius) var(--detailBlockRadius) 0 0; }
+	#zpsDetailView .module-content-area[data-id="expand_section"] > .module-content-title { background: color-mix(in srgb, var(--wl-color-100) 50%, white); }
+	#zpsDetailView .module-field-container > .detail-field-item[multiline="no"] { width: 49%; }
 
-body:not([dir=rtl]) .zps-cell-td { border-left: 1px solid rgba(var(--separatorBdr), 0); }
-body:not([dir=rtl]) .zps-cell-title { border-right: 1px solid rgba(var(--separatorBdr), 0); }
-body:not([dir=rtl]) .zps-cell-title ~ th, body:not([dir=rtl]) .zps-cell-title ~ td { border-left: 1px solid rgba(var(--sheetColumnBdr), 0); }
-.zps-cell-group-bg { background-color: var(--wl-cardHeaderBg) !important; }
+	#zpsDetailView #detailTabMenu { background: var(--wl-color-100); }
+	#zpsDetailView #detailTabMenu #tabInlineBlock { margin: 0px -22px; padding: 0px 22px; }
+	#zpsDetailView #tabs_content { margin-top: 0px; }
 
-.wl-scrollBtnBox { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; gap: 8px; }
-.wl-scrollBtn { background: black; color: white; border-radius: 4px; padding: 6px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 14px; line-height: 14px; cursor: pointer; transition: opacity 0.2s; }
-.wl-scrollBtn > ._icon { font-size: 1.25em; }
-.wl-scrollBtn.is-hidden { opacity: 0; pointer-events: none; }
+	.wl-scrollBtnBox { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; gap: 8px; }
+	.wl-scrollBtn { background: black; color: white; border-radius: 4px; padding: 6px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 14px; line-height: 14px; cursor: pointer; transition: opacity 0.2s; }
+	.wl-scrollBtn > ._icon { font-size: 1.25em; }
+	.wl-scrollBtn.is-hidden { opacity: 0; pointer-events: none; }
