@@ -10,9 +10,9 @@
 }
 
 /*=== List ===*/
-	body:not([dir=rtl]) .zps-cell-td { border-left-color: rgba(var(--sheetTableBdr), 0.15); }
-	body:not([dir=rtl]) .zps-cell-title { border-right-color: rgba(var(--separatorBdr), 0.15); }
-	body:not([dir=rtl]) .zps-cell-title ~ td { border-left-color: rgba(var(--separatorBdr), 0.15); }
+	body:not([dir=rtl]) .zps-cell-td { border-left-color: rgba(var(--sheetTableBdr), 0); }
+	body:not([dir=rtl]) .zps-cell-title { border-right-color: rgba(var(--separatorBdr), 0); }
+	body:not([dir=rtl]) .zps-cell-title ~ td { border-left-color: rgba(var(--separatorBdr), 0); }
 	.table-group-header { font-weight: 500; color: #222; }
 	.table-group-header .mlt-app-itemname { color: #222; }
 	.table-group-list { margin-bottom: 16px; }

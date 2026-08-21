@@ -20,7 +20,7 @@ body { background: #f8f9fa; font-family: 'Segoe UI', Arial, sans-serif; font-siz
 #logged-area { flex: 1; display: flex; flex-direction: column; }
 .wl-tab-content { flex: 1; }
 #wl-list { overflow: hidden; border-radius: 0; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-#wl-list .list-group-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #fff; border-color: #f0f0f0; cursor: default; transition: background 0.1s; }
+#wl-list .list-group-item { display: flex; align-items: center; gap: 8px; padding: 5px 12px; background: #fff; border-color: #f0f0f0; cursor: default; transition: background 0.1s; }
 #wl-list .list-group-item:hover { background: #f5f8ff; }
 #wl-list .list-group-item.drag-over-top { border-top: 2px solid #0d6efd; }
 #wl-list .list-group-item.drag-over-bottom { border-bottom: 2px solid #0d6efd; }
@@ -30,7 +30,10 @@ body { background: #f8f9fa; font-family: 'Segoe UI', Arial, sans-serif; font-siz
 .wl-drag-handle:hover { color: #aaa; }
 .wl-drag-handle:active { cursor: grabbing; }
 
-.wl-item-btn { flex: 1; overflow: hidden; padding: 0; background: none; border: none; color: #2c2c2c; font-size: 14px; font-weight: 500; text-align: left; white-space: nowrap; text-overflow: ellipsis; letter-spacing: 0.01em; }
+.wl-item-main { display: flex; align-items: center; gap: 4px; min-width: 0; margin-right: auto; overflow: hidden; }
+.wl-item-icon { flex-shrink: 0; display: flex; align-items: center; padding: 0; background: none; border: none; color: #bbb; }
+.wl-item-icon:hover { color: #0d6efd; }
+.wl-item-btn { flex: 1; min-width: 0; overflow: hidden; padding: 0; background: none; border: none; color: #2c2c2c; font-size: 14px; font-weight: 500; text-align: left; white-space: nowrap; text-overflow: ellipsis; letter-spacing: 0.01em; }
 .wl-item-btn:hover { color: #0d6efd; }
 
 .wl-btn-edit { flex-shrink: 0; padding: 3px 7px; opacity: 0; color: #888; transition: opacity 0.15s; }

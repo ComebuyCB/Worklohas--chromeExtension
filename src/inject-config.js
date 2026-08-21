@@ -4,6 +4,8 @@
  * paths[].url 匹配規則:
  * - "example.com/page"      精確匹配 hostname + path
  * - "example.com/blog*"     前綴匹配，結尾 * 匹配 /blog、/blog/post-1 等
+ * - "example.com/"          精確匹配 hostname 且僅限根路徑 "/"，不匹配其他子路徑
+ * - "example.com"           僅匹配 hostname，不限制路徑（比對所有路徑）
  * - "*.example.com/*"       萬用字元主機，匹配所有子網域的所有路徑
  * - "*.example.com/admin*"  萬用字元主機 + 前綴路徑匹配
  *
@@ -98,10 +100,10 @@ const inject_sites = {
       }
     ]
   },
-  "rent.591": {
+  "591": {
     "info": {
-      "title": "591 租屋網",
-      "description": "591 租屋網表格化",
+      "title": "591 房屋網",
+      "description": "591 租屋網 / 買屋網表格化",
       "group": "其他",
       "quickLink": "https://rent.591.com.tw/list"
     },
@@ -110,8 +112,16 @@ const inject_sites = {
         "url": "rent.591.com.tw/list",
         "features": ["spa", "jquery"],
         "inject": {
-          "css": ["src/inject/rent.591.com.tw/list.css"],
-          "js": ["src/inject/rent.591.com.tw/list.js"]
+          "css": ["src/inject/591.com.tw/rent.css"],
+          "js": ["src/inject/591.com.tw/rent.js"]
+        }
+      },
+      {
+        "url": "sale.591.com.tw/",
+        "features": ["spa", "jquery"],
+        "inject": {
+          "css": ["src/inject/591.com.tw/sale.css"],
+          "js": ["src/inject/591.com.tw/sale.js"]
         }
       }
     ]

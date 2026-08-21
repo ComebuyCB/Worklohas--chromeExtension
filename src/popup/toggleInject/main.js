@@ -101,14 +101,29 @@ class SiteToggleManager {
     const container = $('#siteTogglesContainer');
     container.empty();
 
-    let currentGroup = undefined;
+    // 依 group 分桶：未分組維持原順序排最前面，同 group 的項目一律歸在一起
+    const ungrouped = [];
+    const groupedMap = new Map(); // group 名稱 → 該群組的 site 陣列，key 依第一次出現順序排列
 
     this.sites.forEach(site => {
-      if (site.group !== currentGroup) {
-        if (currentGroup !== undefined && site.group) {
-          container.append(`<div class="d-flex align-items-center gap-2 mt-1"><hr class="flex-grow-1 my-0"><span class="text-muted flex-shrink-0 site-group-label">${site.group}</span><hr class="flex-grow-1 my-0"></div>`);
-        }
-        currentGroup = site.group;
+      if (!site.group) {
+        ungrouped.push(site);
+        return;
+      }
+      if (!groupedMap.has(site.group)) groupedMap.set(site.group, []);
+      groupedMap.get(site.group).push(site);
+    });
+
+    const orderedSites = [...ungrouped];
+    groupedMap.forEach((groupSites, groupName) => {
+      orderedSites.push({ isGroupHeader: true, group: groupName });
+      orderedSites.push(...groupSites);
+    });
+
+    orderedSites.forEach(site => {
+      if (site.isGroupHeader) {
+        container.append(`<div class="d-flex align-items-center gap-2 mt-1"><hr class="flex-grow-1 my-0"><span class="text-muted flex-shrink-0 site-group-label">${site.group}</span><hr class="flex-grow-1 my-0"></div>`);
+        return;
       }
 
       const isEnabled = this.siteToggles[site.toggleKey] !== false;

@@ -62,15 +62,19 @@ function wl_extractData() {
 
         const $roleNameElement = $item.find('.role-name').first();
         let ownerName = '';
+        let updateTime = '';
         if ($roleNameElement.length) {
-            const $firstSpan = $roleNameElement.find('span').first();
+            const $spans = $roleNameElement.find('span');
+            const $firstSpan = $spans.eq(0);
             if ($firstSpan.length) ownerName = $firstSpan.text().trim();
+            const $secondSpan = $spans.eq(1);
+            if ($secondSpan.length) updateTime = $secondSpan.text().trim();
         }
 
         const priceText = $item.find('.item-info-price').first().text().trim();
 
         if (href || title || metroText) {
-            data.push({ img: imgSrc, href, title, metroText, distanceMeters, houseType, ownerName, priceText });
+            data.push({ img: imgSrc, href, title, metroText, distanceMeters, houseType, ownerName, updateTime, priceText });
         }
     });
 
@@ -104,7 +108,8 @@ function wl_createSortableTable(data) {
                             <th data-column="3" style="width: 102px;">距離(公尺)</th>
                             <th data-column="4" style="width: 78px;">房型</th>
                             <th data-column="5" style="width: 108px;">屋主</th>
-                            <th data-column="6">價格</th>
+                            <th data-column="6" style="width: 108px;">更新時間</th>
+                            <th data-column="7">價格</th>
                         </tr>
                     </thead>
                     <tbody id="rental-table-body"></tbody>
@@ -170,6 +175,7 @@ function wl_updateTable(data) {
                 <td>${item.distanceMeters}</td>
                 <td>${item.houseType}</td>
                 <td>${item.ownerName}</td>
+                <td>${item.updateTime}</td>
                 <td>${item.priceText}</td>
             </tr>`).join(''));
     }

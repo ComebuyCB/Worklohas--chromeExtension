@@ -12,7 +12,7 @@ class PasswordManager {
 
     Object.assign(this, def)
 
-    this.site          = window.location.hostname
+    this.site          = window.location.hostname + (this._isAdminPath() ? '/admin' : '')
     this.panel         = null
     this.loadingEl     = null
     this.emptyEl       = null
@@ -103,6 +103,10 @@ class PasswordManager {
       const { site, account, password } = JSON.parse(raw)
       window.postMessage({ from: 'index.js', to: 'content.js', type: 'pm_add', requestId: null, data: { site, account, password } }, '*')
     } catch (_) {}
+  }
+
+  _isAdminPath() {
+    return window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
   }
 
   _detect() {

@@ -13,7 +13,7 @@
 <div id="myapp">
 
   <!-- 主畫面 -->
-  <div id="view-main">
+  <main id="view-main">
     <h5 class="mb-2 fw-bold pb-1">剪貼簿</h5>
 
     <div id="login-area" style="display:none;">
@@ -39,8 +39,7 @@
         </div>
       </div>
     </div>
-
-  </div>
+  </main>
 
   <!-- 編輯 Modal -->
   <div class="modal fade" id="modal-edit-item" tabindex="-1">
@@ -54,12 +53,12 @@
           <input type="hidden" id="edit-row" value="">
           <input type="hidden" id="edit-order" value="">
           <div class="mb-3">
-            <label class="form-label">標題</label>
-            <input type="text" class="form-control" id="edit-title" placeholder="例如：TIBCS測試站帳號">
+            <label class="form-label">複製文字 *</label>
+            <textarea class="form-control" id="edit-content" rows="2" placeholder="點擊按鈕後，會複製這段文字。"></textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">複製內容</label>
-            <textarea class="form-control" id="edit-content" rows="2" placeholder="點擊按鈕後，會複製這段文字。"></textarea>
+            <label class="form-label">標題 <span class="text-muted fw-normal text-lowercase">(選填)</span></label>
+            <input type="text" class="form-control" id="edit-title" placeholder="例如：測試站A帳號">
           </div>
           <div class="mb-0">
             <label class="form-label">群組</label>

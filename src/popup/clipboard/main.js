@@ -13,9 +13,10 @@ let activeGroup = '';  // '' = 一般
 
 // ── Toast ─────────────────────────────────────────────────
 function showToast(msg = '已複製！', bg = 'bg-success') {
-  const $toast = $('#toast').removeClass('bg-success bg-danger').addClass(bg).show();
+  const $toast = $('#toast').removeClass('bg-success bg-danger bg-primary').addClass(bg).show();
   $('#toast-msg').text(msg);
-  new bootstrap.Toast($toast[0], { delay: 1500 }).show();
+  // 用同一個 instance 而非每次 new，避免連續觸發時前一個的 autohide timer 把畫面提早關掉
+  bootstrap.Toast.getOrCreateInstance($toast[0], { delay: 1500 }).show();
 }
 
 // ── 畫面切換 ──────────────────────────────────────────────
@@ -93,21 +94,37 @@ function renderList() {
   $empty.hide();
 
   items.forEach((item) => {
+    const hasTitle = !!item.title;
+    const displayText = hasTitle ? item.title : item.content;
+    const iconHtml = hasTitle ? '<button class="wl-item-icon" title="複製標題"><i class="fa-regular fa-clipboard"></i></button>' : '';
+
     const $li = $(`
       <li class="list-group-item" data-row="${item.row}">
-        <span class="wl-drag-handle"><i class="fas fa-grip-vertical"></i></span>
-        <button class="wl-item-btn">
-          ${$('<div>').text(item.title).html()}
-        </button>
+        <span class="wl-drag-handle" title="拖曳排序">
+          <i class="fas fa-grip-vertical"></i>
+        </span>
+        <div class="wl-item-main">
+          ${iconHtml}
+          <button class="wl-item-btn" title="複製內容">
+            ${$('<div>').text(displayText).html()}
+          </button>
+        </div>
         <button class="btn btn-sm wl-btn-edit" title="編輯">
           <i class="fas fa-pen fa-xs"></i>
         </button>
       </li>
     `);
 
+    if (hasTitle) {
+      $li.find('.wl-item-icon').on('click', async function () {
+        await navigator.clipboard.writeText(item.title);
+        showToast('已複製標題 !', 'bg-primary');
+      });
+    }
+
     $li.find('.wl-item-btn').on('click', async function () {
       await navigator.clipboard.writeText(item.content);
-      showToast('已複製！');
+      showToast('已複製內容 !');
     });
 
     $li.find('.wl-btn-edit').on('click', function () {
@@ -218,7 +235,7 @@ $(function () {
     const content = $('#edit-content').val().trim();
     const group   = $('#edit-group').val().trim();
 
-    if (!title || !content) { alert('請填寫標題與內容'); return; }
+    if (!content) { alert('請填寫內容'); return; }
 
     $(this).prop('disabled', true).text('儲存中…');
 

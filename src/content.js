@@ -31,7 +31,8 @@ function getCurrentSiteConfig() {
 function _matchUrlPattern(hostname, pathname, pattern) {
   const slashIdx = pattern.indexOf('/');
   const hostPat = slashIdx === -1 ? pattern : pattern.slice(0, slashIdx);
-  const pathPat = slashIdx === -1 ? '' : pattern.slice(slashIdx + 1);
+  const hasPath = slashIdx !== -1;
+  const pathPat = hasPath ? pattern.slice(slashIdx + 1) : '';
 
   // host 比對
   let hostMatch;
@@ -43,9 +44,12 @@ function _matchUrlPattern(hostname, pathname, pattern) {
   }
   if (!hostMatch) return false;
 
-  // path 比對（pathPat 為 pattern 中 / 之後的部分，pathname 去掉開頭 /）
-  if (!pathPat || pathPat === '*') return true;
+  // pattern 未帶 / 時，僅比對 host，不限制路徑
+  if (!hasPath) return true;
+  if (pathPat === '*') return true;
 
+  // path 比對（pathPat 為 pattern 中 / 之後的部分，pathname 去掉開頭 /）
+  // pathPat 為空字串（pattern 以 / 結尾）時，僅精確比對根路徑
   const path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
   if (pathPat.endsWith('*')) return path.startsWith(pathPat.slice(0, -1));
   return path === pathPat;
