@@ -296,6 +296,23 @@ async function pmDeleteItem(token, sheetId, row) {
   });
 }
 
+// ── Favicon 代抓（繞過跨網域 CORP/CORS 限制）─────────────────
+async function blobToDataUrl(blob) {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const base64 = btoa(binary);
+  return `data:${blob.type || 'image/x-icon'};base64,${base64}`;
+}
+
+async function fetchFaviconAsDataUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  return blobToDataUrl(blob);
+}
+
 // ── 訊息監聽 ──────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message.from || message.to !== 'background.js' || !message.type) { return true; }
@@ -319,6 +336,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { authed: true } });
         } catch (_) {
           sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { authed: false } });
+        }
+        return;
+      }
+
+      if (message.type === 'getFavicon') {
+        try {
+          const dataUrl = await fetchFaviconAsDataUrl(message.data.url);
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { dataUrl } });
+        } catch (_) {
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { dataUrl: null } });
         }
         return;
       }

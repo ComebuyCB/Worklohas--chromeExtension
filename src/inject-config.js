@@ -32,6 +32,7 @@ const inject_sites = {
       "title": "NUEIP 快速打卡",
       "description": "NUEIP 快速打卡功能",
       "group": "",
+      "favicon": "https://cloud.nueip.com/favicon.ico",
       "quickLink": "https://cloud.nueip.com/attendance_record"
     },
     "paths": [
@@ -70,6 +71,14 @@ const inject_sites = {
     "paths": [
       {
         "url": "projects.worklohas.com/portal/worklohas",
+        init: (send) => {
+          chrome.storage.local.get(['wl_portal_settings'], send);
+        },
+        onMessage: {
+          'SAVE_PORTAL_SETTINGS': (data) => {
+            chrome.storage.local.set({ wl_portal_settings: data.wl_portal_settings });
+          }
+        },
         "inject": {
           "css": ["src/inject/projects.worklohas.com/portal/worklohas.css"],
           "js": ["src/inject/projects.worklohas.com/portal/worklohas.js"]

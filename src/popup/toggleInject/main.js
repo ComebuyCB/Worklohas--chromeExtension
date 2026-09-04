@@ -1,3 +1,12 @@
+const FROM = 'toggleInject/main.js';
+const TO   = 'background.js';
+
+function send(type, data = {}) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ from: FROM, to: TO, type, data }, resolve);
+  });
+}
+
 $(document).ready(() => {
   window.siteToggleManager = new SiteToggleManager();
 });
@@ -46,10 +55,6 @@ class SiteToggleManager {
       });
     }
     this.init();
-  }
-
-  getFaviconUrl(host) {
-    return `https://${host}/favicon.ico`;
   }
 
   async init() {
@@ -127,14 +132,14 @@ class SiteToggleManager {
       }
 
       const isEnabled = this.siteToggles[site.toggleKey] !== false;
-      const faviconUrl = site.favicon ? site.favicon : this.getFaviconUrl(site.primaryHost);
+      const faviconUrl = site.favicon ? site.favicon : `https://${site.primaryHost}/favicon.ico`;
       const nameHtml = site.quickLink
         ? `<a class="site-info-name" href="${site.quickLink}" target="_blank" rel="noopener noreferrer" title="${site.title}">${site.title}</a>`
         : `<span class="site-info-name" title="${site.title}">${site.title}</span>`;
 
       const toggleHtml = `
         <div class="site-item" data-toggle-key="${site.toggleKey}">
-          <img class="site-item--img" src="${faviconUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+          <img class="site-item--img" alt="">
           <i class="fas fa-globe site-item--img" style="display: none;"></i>
           <div class="site-item--info">
             ${nameHtml}
@@ -147,8 +152,23 @@ class SiteToggleManager {
           </div>
         </div>
       `;
-      container.append(toggleHtml);
+      const $item = $(toggleHtml);
+      container.append($item);
+      this.loadFavicon($item.find('img.site-item--img'), faviconUrl);
     });
+  }
+
+  // 一律請 background.js 代抓 favicon 轉成 base64 再顯示，不直接用 <img src>
+  // 打對方網域，是因為有些網站（例如 nueip）的 favicon.ico 帶了
+  // Cross-Origin-Resource-Policy: same-site，直接跨網域載入會被瀏覽器擋掉
+  async loadFavicon($img, faviconUrl) {
+    const res = await send('getFavicon', { url: faviconUrl });
+    if (res?.data?.dataUrl) {
+      $img.attr('src', res.data.dataUrl);
+    } else {
+      $img.hide();
+      $img.next().show();
+    }
   }
 
   bindEvents() {
