@@ -70,7 +70,7 @@ async function wl_fetchData() {
     const page = activePage || parseInt(params.get('page')) || 1;
     params.set('firstRow', (page - 1) * PAGE_SIZE);
 
-    const apiUrl = `https://bff-house.591.com.tw/v1/web/sale/list?timestamp=${Date.now()}&${params.toString()}`;
+    const apiUrl = `https://bff-house.591.com.tw/v1/web/sale/list?timestamp=${Date.now()}&type=2&category=1&${params.toString()}`;
     let json;
     try {
         const res = await fetch(apiUrl);
