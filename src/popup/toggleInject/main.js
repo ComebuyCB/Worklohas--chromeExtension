@@ -68,7 +68,6 @@ class SiteToggleManager {
     const KEY_MIGRATION = {
       "cloud.nueip.com":        "nueip",
       "projects.worklohas.com": "worklohas-portal",
-      "rent.591.com.tw":        "591",
     };
 
     return new Promise((resolve) => {

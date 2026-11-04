@@ -108,32 +108,6 @@ const inject_sites = {
         }
       }
     ]
-  },
-  "591": {
-    "info": {
-      "title": "591 房屋網",
-      "description": "591 租屋網 / 買屋網表格化",
-      "group": "其他",
-      "quickLink": "https://rent.591.com.tw/list"
-    },
-    "paths": [
-      {
-        "url": "rent.591.com.tw/list",
-        "features": ["spa", "jquery"],
-        "inject": {
-          "css": ["src/inject/591.com.tw/rent.css"],
-          "js": ["src/inject/591.com.tw/rent.js"]
-        }
-      },
-      {
-        "url": "sale.591.com.tw/",
-        "features": ["spa", "jquery"],
-        "inject": {
-          "css": ["src/inject/591.com.tw/sale.css"],
-          "js": ["src/inject/591.com.tw/sale.js"]
-        }
-      }
-    ]
   }
 }
 

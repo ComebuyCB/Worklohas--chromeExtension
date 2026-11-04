@@ -22,7 +22,6 @@
     {
       "matches": [
         "https://*.nueip.com/*",
-        "https://*.591.com.tw/*",
         "https://projects.worklohas.com/*",
         "https://*.worklohas.com/*",
         "https://*.worklohas.dev/*"
@@ -36,7 +35,6 @@
   ],
   "host_permissions": [
     "https://*.nueip.com/*",
-    "https://*.591.com.tw/*",
     "https://*.worklohas.com/*",
     "https://*.worklohas.dev/*",
     "https://sheets.googleapis.com/*",
@@ -50,7 +48,6 @@
       ],
       "matches": [
         "https://*.nueip.com/*",
-        "https://*.591.com.tw/*",
         "https://projects.worklohas.com/*",
         "https://*.worklohas.com/*",
         "https://*.worklohas.dev/*"
