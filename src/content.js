@@ -172,9 +172,25 @@ function initialize() {
 }
 initialize();
 
-// 只有該路徑 features 含 'spa' 才掛 URL 變化監聽
-const _initialConfig = getCurrentSiteConfig();
-if (_initialConfig?.features?.includes('spa')) {
+// 判斷該 hostname 是否存在任何含 'spa' feature 的設定。
+// 不依賴「目前路徑當下就符合設定」，因為 SPA 首次進入該頁前可能停留在完全不相關的路徑，
+// 若監聽器只在「一開始就符合」時才掛上，會導致從非文章頁導覽進文章頁時永遠偵測不到、腳本也不會注入。
+function _hostHasSpaFeature(hostname) {
+  for (const siteConfig of Object.values(SITE_CONFIGS)) {
+    if (!Array.isArray(siteConfig.paths)) continue;
+    for (const pathConfig of siteConfig.paths) {
+      if (!pathConfig.features?.includes('spa')) continue;
+      const hostPat = pathConfig.url.split('/')[0];
+      const hostMatch = hostPat.startsWith('*.')
+        ? (hostname === hostPat.slice(2) || hostname.endsWith('.' + hostPat.slice(2)))
+        : hostname === hostPat;
+      if (hostMatch) return true;
+    }
+  }
+  return false;
+}
+
+if (_hostHasSpaFeature(window.location.hostname)) {
   let lastUrl = location.href;
   new MutationObserver(() => {
     const url = location.href;
@@ -182,7 +198,11 @@ if (_initialConfig?.features?.includes('spa')) {
       lastUrl = url;
       setTimeout(() => {
         const config = getCurrentSiteConfig();
-        if (!config) return;
+        if (!config) {
+          // 網址離開了符合的設定範圍（例如 SPA 導到非文章頁），通知已注入的腳本自行收起 UI
+          window.postMessage({ from: 'content.js', to: 'spa-watch', type: 'LEAVE', data: {} }, '*');
+          return;
+        }
 
         if (_isAlreadyInjected(config)) {
           window.postMessage({ from: 'content.js', to: config.url, type: 'UPDATE', data: {} }, '*');
