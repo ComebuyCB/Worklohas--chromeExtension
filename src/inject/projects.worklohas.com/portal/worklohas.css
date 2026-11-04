@@ -38,8 +38,8 @@
 	#zpsDetailView #detailsGreyBar { padding: var(--fs10px) var(--fs16px); }
 	#zpsDetailView .detail-block-area { margin-top: 12px; }
 	#zpsDetailView .detail-block-area editor-data { max-height: calc(100vh - var(--calc-detailMainHeaderHeight, 30vh) - 110px); }
-	#zpsDetailView .module-content-area { padding: var(--fs12px) var(--fs16px); }
-	#zpsDetailView .module-content-area > .module-content-title { height: var(--fs48px); margin: -12px -15px -4px -15px; padding: 12px 15px; background: var(--wl-color-100); border-radius: var(--detailBlockRadius) var(--detailBlockRadius) 0 0; scroll-margin-top: var(--calc-detailMainHeaderHeight, 158px); }
+	#zpsDetailView .module-content-area { padding: var(--fs12px) var(--fs16px); z-index: 0; }
+	#zpsDetailView .module-content-area > .module-content-title { position: sticky; top: calc(var(--calc-detailMainHeaderHeight, 158px) - 4px); z-index: 99; height: var(--fs48px); margin: -12px -15px -4px -15px; padding: 12px 15px; background: var(--wl-color-100); border-radius: var(--detailBlockRadius) var(--detailBlockRadius) 0 0; scroll-margin-top: var(--calc-detailMainHeaderHeight, 158px); }
 	#zpsDetailView .module-content-area[data-id="expand_section"] > .module-content-title { background: color-mix(in srgb, var(--wl-color-100) 50%, white); }
 	#zpsDetailView .module-field-container > .detail-field-item[multiline="no"] { width: 49%; }
 
