@@ -1,5 +1,8 @@
+// 共用的固定面板，快速補卡與遲到請假試算共用同一個 fixed 容器，內部左右排列
+$('body').append('<div id="WL_dockPanel"></div>');
+
 // 添加時間設定介面
-$('body').append(`
+$('#WL_dockPanel').append(`
   <div id="WL_fixed">
     <div id="WL_toggle">
       <i class="fa fa-chevron-up"></i>
@@ -60,13 +63,13 @@ $(document).on('click', '#WL_toggle', function() {
 
   let collapsed;
   if ($content.is(':visible')) {
-    $content.slideUp();
+    $content.slideUp(200);
     $icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
     $btn.css('width', 'auto');
     $fixed.css('width', 'auto');
     collapsed = true;
   } else {
-    $content.slideDown();
+    $content.slideDown(200);
     $icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
     $btn.css('width', '100%');
     $fixed.css('width', '');
@@ -322,3 +325,135 @@ function loadingData(t, e) {
   }))
   return loadBatchSend[e]; //// CB：回傳查詢的 jqXHR，供補卡前重新查詢完成後再繼續
 }
+
+// 遲到請假試算（右下角固定小工具），純前端計算，不讀寫 storage、不送出任何資料
+class WlLeaveCalculator {
+  constructor() {
+    this.normalArrival = 11 * 60
+    this.graceArrival = this.normalArrival + 5
+    this.flexibleInterval = 6 * 60
+    this.fullInterval = 9 * 60
+    this.minutesPerDay = 24 * 60
+
+    this.init()
+  }
+
+  init() {
+    this._render()
+    this._bindEvents()
+    this.$body.hide()
+    this.$toggleIcon.removeClass('fa-chevron-up').addClass('fa-chevron-down')
+    this._update()
+  }
+
+  _bindEvents() {
+    this.$root.on('click', '.js-leaveCalc-toggle', () => this._toggle())
+    this.$root.on('input change', '.js-leaveCalc-arrival, .js-leaveCalc-departure', () => this._update())
+  }
+
+  _render() {
+    $('#WL_dockPanel').append(`
+      <div id="WL_leaveCalc">
+        <div class="wl-leaveCalc-toggle js-leaveCalc-toggle">
+          <i class="fa fa-chevron-down"></i>
+        </div>
+        <div class="wl-leaveCalc-title">遲到請假試算</div>
+        <div class="wl-leaveCalc-body">
+          <div class="wl-leaveCalc-fields">
+            <div class="wl-leaveCalc-row">
+              <span class="wl-leaveCalc-label">到班</span>
+              <input type="time" class="wl-time-input js-leaveCalc-arrival" value="11:05">
+            </div>
+            <div class="wl-leaveCalc-row">
+              <span class="wl-leaveCalc-label">離開</span>
+              <input type="time" class="wl-time-input js-leaveCalc-departure" value="17:05">
+            </div>
+            <p class="wl-leaveCalc-status js-leaveCalc-status" hidden></p>
+          </div>
+          <div class="wl-leaveCalc-result js-leaveCalc-result">
+            <p class="wl-leaveCalc-placeholder js-leaveCalc-placeholder">請選擇到班與離開時間。</p>
+            <table class="wl-leaveCalc-table js-leaveCalc-table" hidden>
+              <tbody>
+                <tr>
+                  <th>請假</th>
+                  <td>
+                    <span class="wl-leaveCalc-hoursValue js-leaveCalc-hours"></span> 小時
+                    <span class="wl-leaveCalc-note js-leaveCalc-note" hidden>（判定跨日）</span>
+                  </td>
+                </tr>
+                <tr>
+                  <th>說明</th>
+                  <td class="js-leaveCalc-explanation"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `)
+
+    this.$root = $('#WL_leaveCalc')
+    this.$body = this.$root.find('.wl-leaveCalc-body')
+    this.$toggleIcon = this.$root.find('.js-leaveCalc-toggle i')
+    this.$arrival = this.$root.find('.js-leaveCalc-arrival')
+    this.$departure = this.$root.find('.js-leaveCalc-departure')
+    this.$placeholder = this.$root.find('.js-leaveCalc-placeholder')
+    this.$table = this.$root.find('.js-leaveCalc-table')
+    this.$status = this.$root.find('.js-leaveCalc-status')
+    this.$hours = this.$root.find('.js-leaveCalc-hours')
+    this.$explanation = this.$root.find('.js-leaveCalc-explanation')
+    this.$note = this.$root.find('.js-leaveCalc-note')
+  }
+
+  _toggle() {
+    this.$body.slideToggle(200)
+    this.$toggleIcon.toggleClass('fa-chevron-up fa-chevron-down')
+  }
+
+  // "HH:MM" 字串轉當日分鐘數，避免用 Date 物件計算時區/小數誤差
+  _toMinutes(value) {
+    if (!value) return null
+    const [hour, minute] = value.split(':').map(Number)
+    return hour * 60 + minute
+  }
+
+  _update() {
+    const arrivalMinutes = this._toMinutes(this.$arrival.val())
+    let departureMinutes = this._toMinutes(this.$departure.val())
+
+    if (arrivalMinutes === null || departureMinutes === null) {
+      this.$placeholder.prop('hidden', false)
+      this.$table.prop('hidden', true)
+      this.$status.prop('hidden', true)
+      this.$note.prop('hidden', true)
+      return
+    }
+
+    // 離開時間早於到班時間時，自動判定為跨日離開（不需手動勾選）
+    const isNextDay = departureMinutes < arrivalMinutes
+    if (isNextDay) departureMinutes += this.minutesPerDay
+
+    // 5 分鐘緩衝只用於判斷遲到；遲到時數仍從 11:00 起算
+    const flexible = arrivalMinutes <= this.graceArrival
+    const requiredInterval = flexible ? this.flexibleInterval : this.fullInterval
+    const requiredDeparture = arrivalMinutes + requiredInterval
+    const minimumLeave = flexible ? 0 : Math.min(Math.ceil((arrivalMinutes - this.normalArrival) / 60), 2)
+    const workShortage = Math.ceil(Math.max(requiredDeparture - departureMinutes, 0) / 60)
+    const leaveHours = Math.max(minimumLeave, workShortage)
+
+    const status = flexible ? '✅ 準時到班' : '⚠️ 遲到，無彈性下班'
+    const explanation = flexible
+      ? (workShortage > 0 ? '在班未滿 6 小時，需請假補足不足時數。' : '在班已滿 6 小時，可依制度彈性下班。')
+      : `取遲到最低請假 ${minimumLeave} 小時與在班不足 ${workShortage} 小時的較大值。`
+
+    this.$hours.text(leaveHours).toggleClass('is_danger', leaveHours > 0)
+    this.$explanation.text(explanation)
+
+    this.$placeholder.prop('hidden', true)
+    this.$table.prop('hidden', false)
+    this.$status.prop('hidden', false).text(status).toggleClass('is_ontime', flexible).toggleClass('is_late', !flexible)
+    this.$note.prop('hidden', !isNextDay)
+  }
+}
+
+new WlLeaveCalculator()

@@ -1,6 +1,29 @@
-#WL_fixed { position: fixed; bottom: 0; left: 0; z-index: 9999; background: white; padding: 10px 10px 5px 10px; border-radius: 5px; box-shadow: 0 0 8px rgba(0,0,0,0.1), inset 0 0 4px rgba(0,0,0,0.05); }
+#WL_dockPanel { position: fixed; bottom: 0; left: 0; z-index: 9999; display: flex; align-items: flex-end; gap: 16px; }
+#WL_fixed { position: relative; background: white; padding: 10px 10px 5px 10px; border-radius: 5px; box-shadow: 0 0 8px rgba(0,0,0,0.1), inset 0 0 4px rgba(0,0,0,0.05); }
 #WL_toggle { position: absolute; top: -15px; right: -15px; cursor: pointer; background: white; border-radius: 50%; font-size: 16px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
 .wl-input-group { margin-bottom: 16px; }
 .wl-input-label { display: block; margin-bottom: 5px; font-weight: bold; }
 .wl-input-row { display: flex; gap: 8px; align-items: center; }
 .wl-time-input { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+
+#WL_leaveCalc { position: relative; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 8px rgba(0,0,0,0.1), inset 0 0 4px rgba(0,0,0,0.05); }
+.wl-leaveCalc-toggle { position: absolute; top: -15px; right: -15px; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.2); font-size: 16px; cursor: pointer; }
+.wl-leaveCalc-title { font-weight: bold; font-size: 15px; }
+.wl-leaveCalc-body { display: flex; align-items: flex-start; width: 380px; gap: 12px; margin-top: 10px; }
+.wl-leaveCalc-fields { min-width: 0; }
+.wl-leaveCalc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.wl-leaveCalc-label { width: 40px; font-weight: bold; }
+.wl-leaveCalc-status { margin: 0 0 4px; padding: 4px 8px; background: #e0e0e0; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; }
+.wl-leaveCalc-status.is_ontime { background: #e6f4ea; border-color: #b7dfc0; }
+.wl-leaveCalc-status.is_late { background: #fdecea; border-color: #f3c2bd; }
+.wl-leaveCalc-result { flex: 1; min-width: 0; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 14px; line-height: 1.6; }
+.wl-leaveCalc-placeholder { margin: 0; color: #888; }
+.wl-leaveCalc-table { width: 100%; border-collapse: collapse; }
+.wl-leaveCalc-table th,
+.wl-leaveCalc-table td { padding: 4px 0; border-bottom: 1px solid #ddd; font-weight: normal; text-align: left; vertical-align: top; }
+.wl-leaveCalc-table th { width: 40px; color: #666; }
+.wl-leaveCalc-table tr:last-child th,
+.wl-leaveCalc-table tr:last-child td { border-bottom: none; }
+.wl-leaveCalc-hoursValue { font-size: 18px; font-weight: bold; line-height: 0.75; }
+.wl-leaveCalc-hoursValue.is_danger { color: #c0392b; }
+.wl-leaveCalc-note { margin-left: 4px; font-size: 12px; font-weight: normal; color: #666; }
