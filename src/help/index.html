@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>功能說明 - Worklohas 擴充功能</title>
+  <link href="/static/plugins/bootstrap-5.3.8/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/plugins/fontawesome-free-7.2.0-web/css/all.min.css" rel="stylesheet">
+  <link href="main.css" rel="stylesheet">
+  <script src="/static/plugins/jquery-3.6.4/jquery.min.js"></script>
+  <script src="/src/inject-config.js"></script>
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <header class="help_header">
+    <div class="container help_container">
+      <h1 class="help_header-title"><i class="fas fa-layer-group help_header-icon"></i>功能說明</h1>
+    </div>
+  </header>
+
+  <main class="container help_container d-flex flex-column gap-3 py-4">
+    <section class="card">
+      <h2 class="card-header help_card-title">功能</h2>
+      <div class="card-body">
+        <ul class="row row-cols-1 g-3 list-unstyled mb-0">
+          <li class="col">
+            <div class="help_feature">
+              <div class="help_feature-icon"><i class="fas fa-globe js-site-icon" data-site-key="nueip"></i></div>
+              <div>
+                <h3 class="help_feature-title">NUEIP 快速打卡</h3>
+                <p class="help_feature-desc">在出勤紀錄頁一次補上缺少的打卡，並可試算遲到請假時數。</p>
+              </div>
+            </div>
+          </li>
+          <li class="col">
+            <div class="help_feature">
+              <div class="help_feature-icon"><i class="fas fa-globe js-site-icon" data-site-key="worklohas-portal"></i></div>
+              <div>
+                <h3 class="help_feature-title">Worklohas Portal</h3>
+                <p class="help_feature-desc">強化 Zoho Projects 介面，可調整視窗寬度及快速捲動。</p>
+              </div>
+            </div>
+          </li>
+          <li class="col">
+            <div class="help_feature">
+              <div class="help_feature-icon"><i class="fas fa-globe js-site-icon" data-site-key="worklohas-pm"></i></div>
+              <div>
+                <h3 class="help_feature-title">測試站帳密管理<span class="help_feature-badge">需登入</span></h3>
+                <p class="help_feature-desc">在 worklohas 網域下的登入頁，會自動記錄並可填入帳密。</p>
+              </div>
+            </div>
+          </li>
+          <li class="col">
+            <div class="help_feature">
+              <div class="help_feature-icon"><i class="fas fa-clipboard"></i></div>
+              <div>
+                <h3 class="help_feature-title">剪貼簿<span class="help_feature-badge">需登入</span></h3>
+                <p class="help_feature-desc">自訂儲存常用文字，點一下就能複製。</p>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-header help_card-title">登入 Google 後的功能</h2>
+      <div class="card-body">
+        <p>登入後，會在你的帳戶建立一份 Google 試算表，名為「<a id="link-sheet" href="https://docs.google.com/spreadsheets/u/0/" target="_blank" rel="noopener noreferrer">Chrome Extension For Worklohas</a>」。<br>
+          這份試算表就像擴充功能的資料庫，你也可以隨時查看，內容包含：</p>
+        <ul class="row row-cols-1 g-3 list-unstyled mb-0">
+          <li class="col">
+            <div class="help_feature align-items-center">
+              <div class="help_feature-icon"><i class="fas fa-globe js-site-icon" data-site-key="worklohas-pm"></i></div>
+              <h3 class="help_feature-title mb-0">測試站帳密管理</h3>
+            </div>
+          </li>
+          <li class="col">
+            <div class="help_feature align-items-center">
+              <div class="help_feature-icon"><i class="fas fa-clipboard"></i></div>
+              <h3 class="help_feature-title mb-0">剪貼簿</h3>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

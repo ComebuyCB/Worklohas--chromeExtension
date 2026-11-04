@@ -1,0 +1,20 @@
+body { background: #e2e8f0; color: #334155; }
+
+/* ── Layout ───────────────────────────────────────────── */
+.help_container { max-width: 760px; }
+
+/* ── Header ───────────────────────────────────────────── */
+.help_header { padding: 24px 0; background: #1e293b; }
+.help_header-title { display: flex; align-items: center; gap: 12px; margin-bottom: 0; color: #f1f5f9; font-size: 24px; font-weight: 700; }
+.help_header-icon { color: #38bdf8; }
+
+/* ── Card ─────────────────────────────────────────────── */
+.help_card-title { padding: 12px 16px; color: #1e293b; font-size: 18px; font-weight: 700; }
+
+/* ── Feature ──────────────────────────────────────────── */
+.help_feature { display: flex; gap: 12px; height: 100%; }
+.help_feature-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; height: 40px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; color: #64748b; font-size: 18px; }
+.help_feature-icon > img { width: 22px; height: 22px; }
+.help_feature-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; color: #1e293b; font-size: 15px; font-weight: 700; }
+.help_feature-badge { padding: 1px 8px; background: #e0f2fe; border-radius: 999px; color: #0369a1; font-size: 12px; font-weight: 500; }
+.help_feature-desc { margin-bottom: 0; color: #64748b; font-size: 14px; }

@@ -18,8 +18,19 @@
     <div class="dropdown">
       <button class="btn wl-btn-gear" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="fas fa-cog"></i>
+        <span class="wl-auth-status" role="img" title="已登入" aria-label="已登入"></span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2 wl-dropdown-check" id="label-clipboard" for="chk-clipboard">
+            <input class="form-check-input mt-0" id="chk-clipboard" type="checkbox">顯示剪貼簿
+          </label>
+        </li>
+        <li>
+          <a class="dropdown-item" href="/src/help/index.html" target="_blank" rel="noopener noreferrer">
+            <i class="fas fa-circle-question me-2"></i>功能說明
+          </a>
+        </li>
         <li>
           <button class="dropdown-item" id="btn-login" type="button">
             <i class="fab fa-google me-2"></i>登入 Google
@@ -34,7 +45,7 @@
     </div>
   </header>
   <div class="iframe-row">
-    <div class="iframe-wrap">
+    <div class="iframe-wrap" id="clipboard-wrap">
       <iframe id="iframe-clipboard" src="/src/popup/clipboard/index.html"></iframe>
     </div>
     <div class="iframe-wrap">
