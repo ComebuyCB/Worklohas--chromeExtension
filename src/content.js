@@ -78,25 +78,37 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   return true; // 保持消息通道開啟
 });
 
+// 帳密管理只開放給這些網域（background.js 會再依 sender.url 檢查一次）
+const PM_HOSTS = ['worklohas.com', 'worklohas.dev'];
+
+function _isPMHost(hostname) {
+  return PM_HOSTS.some(domain => hostname === domain || hostname.endsWith('.' + domain));
+}
+
 // 監聽來自注入腳本(inject/*)的消息
 window.addEventListener('message', (event) => {
+  // 只接受同一個視窗送出的訊息，擋掉 iframe 或其他視窗送進來的訊息
+  if (event.source !== window || event.origin !== location.origin) { return; }
+
   const message = event.data;
   if (!message?.from || message.to !== 'content.js' || !message?.type) { return; }
 
-  // PM UI state：直接在 content.js 存取 storage.local，不需轉發 background
-  if (message.type === 'pm_save_state') {
-    chrome.storage.local.set({ wl_pm_settings: message.data });
-    return;
-  }
-  if (message.type === 'pm_get_state') {
-    chrome.storage.local.get(['wl_pm_settings'], (result) => {
-      window.postMessage({ from: 'content.js', to: message.from, requestId: message.requestId, data: result.wl_pm_settings || {} }, '*');
-    });
-    return;
-  }
-
-  // PM bridge：帳密管理訊息中轉至 background.js（inject 腳本在 page world，無法直接呼叫 chrome API）
   if (message.type.startsWith('pm_')) {
+    if (!_isPMHost(location.hostname)) { return; }
+
+    // PM UI state：直接在 content.js 存取 storage.local，不需轉發 background
+    if (message.type === 'pm_save_state') {
+      chrome.storage.local.set({ wl_pm_settings: message.data });
+      return;
+    }
+    if (message.type === 'pm_get_state') {
+      chrome.storage.local.get(['wl_pm_settings'], (result) => {
+        window.postMessage({ from: 'content.js', to: message.from, requestId: message.requestId, data: result.wl_pm_settings || {} }, location.origin);
+      });
+      return;
+    }
+
+    // PM bridge：帳密管理訊息中轉至 background.js（inject 腳本在 page world，無法直接呼叫 chrome API）
     new Promise(resolve => {
       chrome.runtime.sendMessage(
         { from: message.from, to: 'background.js', type: message.type, data: message.data || {} },
@@ -109,7 +121,7 @@ window.addEventListener('message', (event) => {
         to: message.from,
         requestId: message.requestId,
         data: response?.data
-      }, '*');
+      }, location.origin);
     });
     return;
   }

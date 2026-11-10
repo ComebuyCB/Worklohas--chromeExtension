@@ -1,0 +1,322 @@
+/* 此檔由 screenshot.js 載入至 Shadow DOM，不會影響網站樣式 */
+/* 網頁的 CSS 優先權高於 :host，一般寫法擋不住 div { line-height: 2 } 這類規則，所以全部加上 !important */
+:host {
+  --mark: #e11d2e;
+  --primary: #0d6efd;
+  --dark: #1e293b;
+  --gray-cb: #cbd5e1;
+  --edge: 0 0 0 1px rgba(245, 245, 245, .45); /* 按鈕群、菜單的淺色外框（#f5f5f5 半透明，不會太搶眼）：用 box-shadow 畫，不佔版面 */
+  all: initial !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* 預設不攔截滑鼠，網頁可正常操作；只有工具列、右側欄、對話框，以及截圖模式的舞台才接收 */
+.screenshot_editor { position: absolute; inset: 0; outline: none; font: 14px/1.4 system-ui, "Microsoft JhengHei", "PingFang TC", sans-serif; color: #222; }
+
+/* isolation：藍框的 z-index 只在舞台內比較，不會蓋到工具列和右側欄 */
+.screenshot_editor--stage { position: absolute; inset: 0; isolation: isolate; overflow: hidden; touch-action: none; user-select: none; }
+.screenshot_editor.is_capture > .screenshot_editor--stage { box-shadow: inset 0 0 0 3px var(--primary); cursor: crosshair; pointer-events: auto; }
+.screenshot_editor.is_capture > .screenshot_editor--stage.is_over_item { cursor: move; }
+/* 即時畫面：滑鼠穿透到網頁，可以操作；不能框選，等右鍵凍結 */
+.screenshot_editor.is_live > .screenshot_editor--stage { cursor: auto; pointer-events: none; }
+
+/* 凍結的底圖（截圖模式的凍結畫面，或放大中的圖） */
+.screenshot_backdrop { position: absolute; top: 0; left: 0; }
+.screenshot_backdrop[hidden] { display: none; }
+.screenshot_backdrop > canvas { display: block; }
+/* 底圖上的半透明黑底：由 JS 整片塗暗，再挖空每個藍框和框選中的範圍，不論有沒有 focus，藍框內都是清楚的 */
+.screenshot_dim { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.screenshot_dim[hidden] { display: none; }
+
+.screenshot_marks { position: absolute; inset: 0; pointer-events: none; }
+.screenshot_shot { position: absolute; top: 0; left: 0; }
+.screenshot_draft { position: absolute; border: 3px dashed var(--primary); pointer-events: none; }
+.screenshot_draft[hidden] { display: none; }
+
+/* 一般模式只顯示右側欄點選的那張圖 */
+.screenshot_editor:not(.is_capture) .screenshot_shot:not(.is_focus) { display: none; }
+
+@keyframes screenshot_focus {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+  50% { box-shadow: 0 0 0 8px rgba(13, 110, 253, .45); }
+}
+
+.screenshot_shot.is_pulse > .screenshot_crop { animation: screenshot_focus .6s ease 3; }
+
+/* 整頁截圖在網頁上顯示：整個網頁外框藍色實線閃爍；時間要等於 JS 的 FLASH_DURATION */
+@keyframes screenshot_flash {
+  0%, 100% { box-shadow: inset 0 0 0 4px rgba(13, 110, 253, 0); }
+  50% { box-shadow: inset 0 0 0 4px var(--primary); }
+}
+.screenshot_editor--stage.is_flash { animation: screenshot_flash .6s ease 3; }
+
+/* 一般模式（沒有凍結底圖）點選清單圖片時，範圍外變暗；遮罩限制在這張圖的尺寸內，捲動到別處時不會把其他內容也變暗 */
+.screenshot_crop_mask { position: absolute; inset: 0; overflow: hidden; }
+.screenshot_crop_shade { position: absolute; }
+.screenshot_editor:not(.is_capture) .screenshot_shot.is_focus > .screenshot_crop_mask > .screenshot_crop_shade { box-shadow: 0 0 0 9999px rgba(15, 23, 42, .45); }
+
+/* 沒有 focus 的藍框是半透明實線，focus 中的是虛線；只改框線，控制點維持不透明 */
+.screenshot_crop { position: absolute; border: 2px solid rgba(13, 110, 253, .5); }
+.screenshot_shot.is_focus > .screenshot_crop { border: 2px dashed var(--primary); }
+/* 左上移動點顯示第幾張圖，對應截圖清單的「圖N」 */
+.screenshot_crop > ._move { position: absolute; top: -11px; left: -11px; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; cursor: move; }
+.screenshot_crop > ._remove { position: absolute; top: -13px; right: -13px; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; background: var(--dark); border: 0; border-radius: 50%; box-shadow: var(--edge); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.screenshot_crop > ._handle { z-index: 1; position: absolute; right: -8px; bottom: -8px; width: 12px; height: 12px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }
+
+/* 整頁截圖：整張就是畫板，沒有藍框，不能移動、縮放、移除（從截圖清單刪除） */
+.screenshot_shot.is_fullPage > .screenshot_crop { border: 0; }
+.screenshot_shot.is_fullPage > .screenshot_crop > ._move,
+.screenshot_shot.is_fullPage > .screenshot_crop > ._remove,
+.screenshot_shot.is_fullPage > .screenshot_crop > ._handle { display: none; }
+
+/* 框貼齊視窗上緣或右緣時，× 改放框內；左上、右下的點維持原位 */
+.screenshot_crop.is_remove_inside > ._remove { top: 2px; right: 2px; }
+
+/* 畫的內容和控制點；藍框本身不攔截滑鼠，左鍵才按得到框內 */
+.screenshot_ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.screenshot_item { position: absolute; inset: 0; pointer-events: none; }
+.screenshot_item > ._grip,
+.screenshot_item > ._remove { display: none; position: absolute; transform: translate(-50%, -50%); }
+.screenshot_item > ._grip { width: 12px; height: 12px; background: var(--mark); border: 2px solid #fff; border-radius: 50%; cursor: move; }
+/* 選取中的直線或方框：控制點變藍，表示滾輪會改它 */
+.screenshot_item.is_selected > ._grip { background: var(--primary); }
+.screenshot_item > ._remove { align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; background: var(--dark); border: 0; border-radius: 50%; color: #fff; font-size: 15px; line-height: 1; cursor: pointer; }
+/* 文字一律粗體；字級和行高由 JS 寫入，留白要等於 screenshot.js 的 TEXT_PADDING，輸出的圖才會和畫面一致 */
+.screenshot_item > ._text { position: absolute; display: block; padding: 4px; overflow: hidden; background: transparent; border: 0; outline: none; color: var(--mark); font: inherit; font-weight: 700; resize: none; user-select: text; }
+
+/* 只有截圖模式、focus 中的藍框才能調整裡面的內容 */
+.screenshot_editor.is_capture .screenshot_shot.is_focus .screenshot_item > ._grip { display: block; pointer-events: auto; }
+.screenshot_editor.is_capture .screenshot_shot.is_focus .screenshot_item > ._remove { display: flex; pointer-events: auto; }
+.screenshot_editor.is_capture .screenshot_shot.is_focus .screenshot_item > ._text { outline: 1px dashed var(--mark); }
+.screenshot_editor.is_capture .screenshot_shot.is_focus.is_tool_text .screenshot_item > ._text { pointer-events: auto; }
+/* 游標在虛框上時顯示可移動 */
+.screenshot_editor--stage.is_over_item .screenshot_item > ._text { cursor: move; }
+
+/* 複製、下載：貼齊框的右側線，在 × 的下方；只有 focus 的框才顯示 */
+.screenshot_tools { display: flex; pointer-events: auto; }
+.screenshot_tools > ._tool { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: var(--dark); border: 0; color: #fff; cursor: pointer; }
+.screenshot_tools > ._tool:hover { background: #475569; }
+.screenshot_crop > .screenshot_tools { display: none; position: absolute; top: 12px; left: 100%; flex-direction: column; margin-left: 2px; overflow: hidden; box-shadow: var(--edge); }
+.screenshot_crop.is_tools > .screenshot_tools { display: flex; }
+/* 靠近視窗右緣時改放框內，才不會超出畫面 */
+.screenshot_crop.is_tools_inside > .screenshot_tools { right: 0; left: auto; margin-left: 0; border-radius: 4px 0 0 4px; }
+.screenshot_crop.is_tools_inside.is_remove_inside > .screenshot_tools { top: 30px; }
+
+/* 畫圖工具：放在藍框下方，寬高要等於 screenshot.js 的 DRAW_BAR_ 常數 */
+.screenshot_draw { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; overflow: hidden; box-shadow: var(--edge); pointer-events: auto; }
+.screenshot_editor.is_capture .screenshot_crop.is_tools > .screenshot_draw { display: flex; }
+.screenshot_draw > ._tool { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: var(--dark); border: 0; color: #fff; cursor: pointer; }
+.screenshot_draw > ._tool:hover { background: #475569; }
+.screenshot_draw > ._tool.is_active,
+.screenshot_draw > ._tool[aria-expanded="true"] { background: var(--primary); }
+.screenshot_draw > ._size { display: flex; align-items: center; justify-content: center; width: 48px; background: var(--dark); color: var(--gray-cb); font-size: 12px; }
+/* 下方放不下時改放框內，右方放不下時靠右對齊 */
+.screenshot_crop.is_draw_inside > .screenshot_draw { top: auto; bottom: 2px; left: 2px; margin-top: 0; }
+.screenshot_crop.is_draw_end > .screenshot_draw { right: 0; left: auto; }
+
+/* 控制點只在截圖模式才能操作，一般模式點選圖片時只顯示 */
+.screenshot_editor.is_capture .screenshot_crop > ._move,
+.screenshot_editor.is_capture .screenshot_crop > ._remove,
+.screenshot_editor.is_capture .screenshot_crop > ._handle { pointer-events: auto; }
+
+.screenshot_editor:not(.is_capture) .screenshot_crop > ._move,
+.screenshot_editor:not(.is_capture) .screenshot_crop > ._remove,
+.screenshot_editor:not(.is_capture) .screenshot_crop > ._handle { display: none; }
+
+/* 和複製、下載、畫圖工具一樣，只有 focus 中的藍框才顯示 ×、調整點；左上的編號點一直顯示，對照清單用 */
+.screenshot_shot:not(.is_focus) > .screenshot_crop > ._remove,
+.screenshot_shot:not(.is_focus) > .screenshot_crop > ._handle { display: none; }
+
+/* 收合時：兩層橫式，預設在右上角，按住標題列拖曳（拖曳後 left、top 由 JS 寫入）。第一層是標題、清單和結束，第二層是截圖、狀態和說明 */
+/* 直角，淡白色外光，在深色遮罩上也看得清楚 */
+.screenshot_toolbar { position: absolute; top: 4px; right: 4px; display: flex; flex-direction: column; width: 300px; background: var(--dark); box-shadow: var(--edge); pointer-events: auto; user-select: none; transition: opacity .15s; }
+.screenshot_toolbar.is_moved { right: auto; }
+/* 標題列較淡較矮，分隔線貼齊左右兩側 */
+.screenshot_toolbar--head { display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 12px; background: #475569; border-bottom: 1px solid #64748b; touch-action: none; }
+.screenshot_toolbar--body { display: flex; align-items: center; gap: 6px; padding: 6px; }
+.screenshot_toolbar_title { flex: 1; color: #f1f5f9; font-size: 12px; font-weight: 700; }
+
+.screenshot_status { flex: 1; min-width: 0; padding: 0 4px; color: var(--gray-cb); font-size: 13px; line-height: 18px; }
+/* 倒數中醒目顯示 */
+.screenshot_status.is_countdown { color: #fbbf24; font-weight: 700; }
+/* 倒數中的「Esc 取消」：底線文字按鈕，顏色跟著倒數 */
+.screenshot_status .screenshot_link { color: inherit; font-size: inherit; }
+.screenshot_status .screenshot_link:hover { color: #fde68a; }
+
+/* 截圖/編輯：實體按鍵。凸起時底下有 3px 的按鍵側邊（--depth），按住下沉 2px；模式中側邊消失、淡淡內凹，不位移
+   側邊用 box-shadow 畫、位移用 transform，都不影響版面 */
+.screenshot_captureBtn { --depth: #0b1220; --highlight: inset 0 1px 0 rgba(255, 255, 255, .2); position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; background: linear-gradient(#4b5b73, #334155); border: 1px solid #1e293b; box-shadow: var(--highlight), 0 3px 0 var(--depth), 0 4px 6px rgba(0, 0, 0, .35); color: #e2e8f0; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: transform .08s ease, box-shadow .08s ease, opacity .15s ease; }
+.screenshot_captureBtn > svg { width: 18px; height: 18px; }
+/* 滑過只改透明度；立體的變化留給切換（凸起 ↔ 陷入） */
+.screenshot_captureBtn:hover { opacity: .85; }
+/* 按住：下沉 2px，側邊變薄，內側一點點陰影 */
+.screenshot_captureBtn:active { box-shadow: inset 0 1px 0 rgba(0, 0, 0, .12), 0 1px 0 var(--depth); transform: translateY(2px); }
+
+/* 模式中：側邊消失、極淡的內凹，藍底，不位移 */
+.screenshot_captureBtn.is_active { background: linear-gradient(#0a58ca, #0d6efd); border-color: #0a3d8f; box-shadow: inset 0 1px 1px rgba(0, 0, 0, .15), 0 0 0 var(--depth); color: #fff; transform: none; }
+.screenshot_captureBtn.is_active:active { box-shadow: inset 0 1px 2px rgba(0, 0, 0, .2), 0 0 0 var(--depth); transform: none; }
+
+.screenshot_iconBtn { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; background: #475569; border: 0; border-radius: 6px; color: #fff; cursor: pointer; }
+.screenshot_iconBtn > svg { width: 20px; height: 20px; }
+.screenshot_iconBtn:hover { background: #56657a; }
+.screenshot_iconBtn.is_active,
+.screenshot_iconBtn[aria-expanded="true"] { background: var(--primary); }
+.screenshot_iconBtn.is_active:hover,
+.screenshot_iconBtn[aria-expanded="true"]:hover { background: #0b5ed7; }
+.screenshot_iconBtn.is_danger { background: var(--mark); }
+.screenshot_iconBtn.is_danger:hover { background: #ef4452; }
+.screenshot_iconBtn > ._count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; background: var(--mark); border-radius: 8px; color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; }
+.screenshot_iconBtn > ._count:empty { display: none; }
+
+/* 標題列的按鈕較小、直角，底色比標題列（#475569）亮一階；展開時不變藍，維持一般底色。權重和上方 .screenshot_iconBtn 的狀態規則相同，要放在後面 */
+.screenshot_toolbar--head > .screenshot_iconBtn,
+.screenshot_toolbar--head > .screenshot_iconBtn[aria-expanded="true"] { width: 36px; height: 26px; background: #64748b; border-radius: 0; }
+.screenshot_toolbar--head > .screenshot_iconBtn svg { width: 16px; height: 16px; }
+.screenshot_toolbar--head > .screenshot_iconBtn:hover,
+.screenshot_toolbar--head > .screenshot_iconBtn[aria-expanded="true"]:hover { background: #7c8ba1; }
+.screenshot_toolbar--head > .screenshot_iconBtn.is_danger { background: var(--mark); }
+/* 和其他按鈕一樣滑過變亮一點 */
+.screenshot_toolbar--head > .screenshot_iconBtn.is_danger:hover { background: #ef4452; }
+.screenshot_toolbar--head > .screenshot_iconBtn > ._count { top: -4px; right: -4px; }
+
+/* 展開截圖清單時：同樣兩層，放在右側欄最上方當標題列，不能拖曳；z-index 讓說明蓋過下方的圖片 */
+.screenshot_panel > .screenshot_toolbar { z-index: 1; position: relative; top: auto; right: auto; left: auto; flex-shrink: 0; width: auto; box-shadow: none; }
+.screenshot_panel > .screenshot_toolbar > .screenshot_toolbar--body { padding: 6px 10px; }
+
+/* 距離要等於 screenshot.js 的 HELP_GAP；預設在工具列下方置中，下方放不下改往上；--help-shift 由 JS 算出，避免左右超出視窗 */
+.screenshot_help { position: absolute; top: calc(100% + 8px); left: 50%; width: 320px; max-height: var(--help-max, none); padding: 12px 14px; overflow-y: auto; overscroll-behavior: contain; background: #fff; border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); color: #222; font-size: 13px; font-weight: 400; line-height: 20px; text-align: left; transform: translateX(calc(-50% + var(--help-shift, 0px))); white-space: normal; user-select: text; }
+.screenshot_help[hidden] { display: none; }
+.screenshot_help.is_up { top: auto; bottom: calc(100% + 8px); }
+/* 畫圖工具列的說明放在外層，left、top 由 JS 依按鈕算出；z-index 高過放大時的舞台 */
+.screenshot_drawHelp { z-index: 3; top: 0; left: 0; transform: none; pointer-events: auto; }
+
+/* 操作說明表格：每組一個 tbody，組標題跨兩欄；網頁是 quirks mode 時表格不繼承字級，要明確指定 */
+.screenshot_helpTable { width: 100%; border-collapse: collapse; font: inherit; }
+.screenshot_helpTable > caption { margin-bottom: 2px; font-weight: 700; text-align: left; }
+.screenshot_helpTable > tbody > tr > th,
+.screenshot_helpTable > tbody > tr > td { padding: 3px 0; text-align: left; vertical-align: top; }
+.screenshot_helpTable > tbody > tr > th { padding-right: 12px; font-weight: 700; white-space: nowrap; }
+.screenshot_helpTable > tbody > tr > td { color: #475569; }
+.screenshot_helpTable > tbody > tr > th._group { padding: 10px 0 4px; border-bottom: 1px solid #e2e8f0; color: var(--primary); font-size: 12px; }
+.screenshot_editor.is_drawing > .screenshot_toolbar { opacity: 0; pointer-events: none; }
+
+.screenshot_btn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40px; padding: 4px 12px; background: #334155; border: 0; border-radius: 4px; color: #fff; font: inherit; font-size: 13px; line-height: 1.25; text-decoration: none; cursor: pointer; }
+.screenshot_btn > small { font-size: 11px; opacity: .75; }
+.screenshot_btn:hover { background: #475569; }
+.screenshot_btn:disabled { opacity: .45; cursor: not-allowed; }
+.screenshot_btn.is_primary { background: var(--primary); }
+.screenshot_btn.is_primary:hover { background: #0b5ed7; }
+.screenshot_btn.is_light { background: #e2e8f0; color: #222; }
+.screenshot_btn.is_light:hover { background: var(--gray-cb); }
+.screenshot_link { align-self: flex-end; padding: 0; background: none; border: 0; color: var(--primary); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.screenshot_link.is_danger { color: var(--mark); }
+
+/* 右側欄收合時留在視窗右緣的細條：看得到的只有 2px，可點範圍 6px，否則滑鼠很難停在上面 */
+.screenshot_panel_edge { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; padding: 0; background: none; border: 0; cursor: pointer; pointer-events: auto; }
+.screenshot_panel_edge::before { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, .85); box-shadow: 0 0 2px rgba(0, 0, 0, .35); }
+.screenshot_panel_edge > ._hint { position: absolute; top: 50%; right: calc(100% + 8px); padding: 6px 10px; background: var(--dark); border-radius: 4px; color: #fff; font: inherit; font-size: 13px; white-space: nowrap; opacity: 0; transform: translateY(-50%); pointer-events: none; transition: opacity .15s ease; }
+.screenshot_panel_edge:hover > ._hint,
+.screenshot_panel_edge:focus-visible > ._hint { opacity: 1; }
+.screenshot_editor.is_drawing > .screenshot_panel_edge { pointer-events: none; }
+
+/* isolation：裡面工具列的 z-index 只在右側欄內比較，放大時仍被舞台蓋住 */
+.screenshot_panel { position: absolute; top: 0; right: 0; bottom: 0; isolation: isolate; display: flex; flex-direction: column; width: min(400px, 100%); overflow: hidden; background: rgba(255, 255, 255, .95); box-shadow: -6px 0 24px rgba(0, 0, 0, .3); pointer-events: auto; transition: background-color .15s ease; }
+.screenshot_panel:hover { background: #fff; }
+.screenshot_panel[hidden] { display: none; }
+.screenshot_panel--head { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+/* 只捲動這一區，標題列和工具列固定在上方；留白要夠，選取框的外光才不會被裁掉；淺灰底讓白色卡片一張張分開 */
+.screenshot_panel--body { flex: 1; min-height: 0; padding: 8px; overflow-y: auto; overscroll-behavior: contain; background: #f1f5f9; }
+.screenshot_panel--head > .screenshot_link { margin-left: auto; }
+.screenshot_panel_title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 18px; font-weight: 700; }
+/* 張數：紅色圓點；沒有圖時不顯示 */
+.screenshot_panel_title > ._count { min-width: 20px; height: 20px; padding: 0 6px; background: var(--mark); border-radius: 10px; color: #fff; font-size: 12px; line-height: 20px; text-align: center; }
+.screenshot_panel_title > ._count:empty { display: none; }
+.screenshot_panel_empty { margin: 0; color: #64748b; font-size: 13px; }
+
+/* 分頁：區塊、整頁；選中的分頁和下方清單同底色，看起來連在一起 */
+.screenshot_panel--tabs { display: flex; flex-shrink: 0; gap: 4px; padding: 8px 8px 0; border-bottom: 1px solid #e2e8f0; }
+.screenshot_tab { display: flex; align-items: center; gap: 6px; margin-bottom: -1px; padding: 6px 14px; background: none; border: 1px solid transparent; border-bottom: 0; border-radius: 4px 4px 0 0; color: #64748b; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.screenshot_tab:hover { color: var(--dark); }
+.screenshot_tab.is_active { background: #f1f5f9; border-color: #e2e8f0; color: var(--primary); }
+.screenshot_tab > ._count { min-width: 18px; height: 18px; padding: 0 5px; background: #94a3b8; border-radius: 9px; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.screenshot_tab.is_active > ._count { background: var(--primary); }
+.screenshot_tab > ._count:empty { display: none; }
+
+/* 每張圖是一張卡片：上方是編號和網址，下方是縮圖；選取中的卡片藍色外框 */
+.screenshot_images { display: flex; flex-direction: column; gap: 10px; }
+.screenshot_image { margin: 0; overflow: hidden; background: var(--dark); border: 1px solid #334155; border-radius: 4px; box-shadow: 0 1px 2px rgba(15, 23, 42, .1); color: #fff; transition: border-color .15s ease, box-shadow .15s ease; }
+.screenshot_image:hover { border-color: #64748b; }
+.screenshot_image.is_selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(13, 110, 253, .3); }
+
+.screenshot_image--head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-bottom: 1px solid #334155; }
+/* 編號和畫面上藍框左上角的圓點同一個樣式，方便對照 */
+.screenshot_image_index { display: flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; background: var(--primary); border-radius: 10px; color: #fff; font-size: 11px; font-weight: 700; }
+.screenshot_image_tag { flex-shrink: 0; padding: 1px 6px; background: #fef3c7; border-radius: 4px; color: #92400e; font-size: 11px; font-weight: 700; }
+/* 網址單行，太長以「…」截斷，完整網址在 title */
+.screenshot_image_url { min-width: 0; overflow: hidden; color: #e2e8f0; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+/* 複製網址：緊接在網址後面 */
+.screenshot_image_copyUrl { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 20px; height: 20px; margin-left: -4px; margin-right: auto; padding: 0; background: none; border: 0; border-radius: 4px; color: #94a3b8; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.screenshot_image_copyUrl:hover { background: #334155; color: #fff; }
+.screenshot_image_copyUrl > svg { width: 12px; height: 12px; }
+/* 刪除：像視窗右上角的關閉鈕，一直顯示 */
+.screenshot_image_remove { display: flex; flex-shrink: 0; align-items: center; justify-content: center; margin-left: 4px; width: 24px; height: 24px; padding: 0; background: none; border: 0; border-radius: 4px; color: #f87171; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.screenshot_image_remove:hover { background: var(--mark); color: #fff; }
+.screenshot_image_remove > svg { width: 14px; height: 14px; }
+
+.screenshot_image--frame { position: relative; user-select: none; }
+/* 圖片最少 120px、最多 360px 高；較扁或較長的圖置中顯示、不變形，旁邊留淺底 */
+.screenshot_image--frame > canvas { display: block; width: 100%; height: auto; min-height: 120px; max-height: 360px; object-fit: contain; background: #f8fafc; cursor: pointer; }
+
+/* 圖片上的按鈕：左下在網頁上顯示，右下複製、下載（刪除在卡片標題列；點圖片本身是放大編輯）；滑過卡片或鍵盤移到按鈕時才出現
+   整層貼齊圖片內緣，用 grid 分到角落；空白處不攔截滑鼠，點得到底下的縮圖 */
+.screenshot_imageTools { position: absolute; inset: 6px; display: grid; grid-template-columns: auto 1fr auto auto; grid-template-rows: 1fr auto; gap: 4px; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+.screenshot_imageTools > ._tool { pointer-events: auto; }
+.screenshot_imageTools > ._tool_view { grid-area: 2 / 1; }
+.screenshot_imageTools > ._tool_copy { grid-area: 2 / 3; }
+.screenshot_imageTools > ._tool_download { grid-area: 2 / 4; }
+/* 滑過整張卡片（含標題列）就顯示 */
+.screenshot_image:hover > .screenshot_image--frame > .screenshot_imageTools,
+.screenshot_imageTools:focus-within { opacity: 1; }
+.screenshot_imageTools > ._tool { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: rgba(30, 41, 59, .85); border: 0; border-radius: 4px; color: #fff; cursor: pointer; }
+.screenshot_imageTools > ._tool:hover { background: var(--dark); }
+.screenshot_panel--head > .screenshot_link { align-self: auto; }
+
+/* 放大：舞台蓋住工具列和右側欄，底圖之外的地方是深色；操作列放上方中間，避開藍框的 ×、複製、下載和左下的畫圖工具 */
+.screenshot_editor.is_gallery > .screenshot_editor--stage { z-index: 1; background: var(--dark); }
+.screenshot_gallery { z-index: 2; position: absolute; top: 8px; left: 50%; display: flex; align-items: center; gap: 4px; padding: 4px; background: var(--dark); border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, .35); color: #fff; transform: translateX(-50%); pointer-events: auto; transition: opacity .15s; }
+.screenshot_gallery[hidden] { display: none; }
+.screenshot_editor.is_drawing > .screenshot_gallery { opacity: 0; pointer-events: none; }
+.screenshot_gallery > ._count { padding: 0 6px; font-size: 13px; white-space: nowrap; }
+.screenshot_gallery > ._nav,
+.screenshot_gallery > ._help,
+.screenshot_gallery > ._close { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: none; border: 0; border-radius: 4px; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.screenshot_gallery > ._nav:hover,
+.screenshot_gallery > ._help:hover,
+.screenshot_gallery > ._close:hover { background: #475569; }
+.screenshot_gallery > ._help[aria-expanded="true"] { background: var(--primary); }
+.screenshot_gallery > ._help > svg { width: 18px; height: 18px; }
+.screenshot_gallery > ._nav[hidden] { display: none; }
+
+@keyframes screenshot_snapshot {
+  0% { opacity: 0; transform: translateY(12px) scale(.96); }
+  10%, 85% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+/* 動畫總長要等於 screenshot.js 的 SNAPSHOT_DELAY */
+.screenshot_snapshot { z-index: 3; position: absolute; bottom: 84px; left: 16px; width: 280px; padding: 8px; background: #fff; border: 2px solid #16a34a; border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); animation: screenshot_snapshot 2.5s ease forwards; }
+.screenshot_snapshot > ._text { margin: 0 0 6px; color: #166534; font-size: 13px; font-weight: 700; }
+.screenshot_snapshot > canvas { display: block; width: 100%; height: auto; max-height: 220px; object-fit: contain; object-position: top; border-radius: 4px; }
+
+.screenshot_dialog { position: absolute; top: 50%; left: 50%; display: flex; flex-direction: column; gap: 10px; width: min(420px, calc(100% - 32px)); padding: 16px; background: #fff; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, .4); transform: translate(-50%, -50%); pointer-events: auto; }
+.screenshot_dialog[hidden] { display: none; }
+.screenshot_dialog > ._text { margin: 0; font-weight: 700; }
+.screenshot_dialog > ._url { overflow-wrap: anywhere; color: var(--primary); font-size: 13px; }
+.screenshot_dialog--foot { display: flex; justify-content: flex-end; gap: 8px; }

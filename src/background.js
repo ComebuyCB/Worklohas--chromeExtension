@@ -280,6 +280,20 @@ async function pmAddItem(token, sheetId, site, account, password) {
   });
 }
 
+// 帳密管理只開放給這些網域的分頁主框架
+const PM_HOSTS = ['worklohas.com', 'worklohas.dev'];
+
+// 由 sender.url 算出呼叫者所在的網站，格式與 inject/worklohas.com/index.js 的 site 相同
+// 不採用網頁送來的 site，避免網頁讀取或改動其他網站的帳密
+function getPMSite(sender) {
+  if (!sender.tab || sender.frameId !== 0 || !sender.url) return null;
+  const { protocol, hostname, pathname } = new URL(sender.url);
+  if (protocol !== 'https:') return null;
+  if (!PM_HOSTS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) return null;
+  const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
+  return hostname + (isAdmin ? '/admin' : '');
+}
+
 async function pmDeleteItem(token, sheetId, row) {
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
@@ -312,6 +326,87 @@ async function fetchFaviconAsDataUrl(url) {
   const blob = await res.blob();
   return blobToDataUrl(blob);
 }
+
+// ── 截圖標註 ──────────────────────────────────────────────
+const SCREENSHOT_COMMAND = 'open-screenshot-editor';
+const SCREENSHOT_CSS = 'src/inject/_screenshot/screenshot.css';
+const SCREENSHOT_TAB_KEY = 'wl_report_tab'; // 開著工具的分頁，換頁後要接回去；瀏覽器關閉就不需要了，存 session
+const SCREENSHOT_FILES = [
+  'static/plugins/jquery-3.6.4/jquery.min.js',
+  'src/inject/_screenshot/screenshot.js'
+];
+
+// method：open 是使用者開啟，resume 是換頁後接回
+async function injectScreenshotEditor(tabId, method) {
+  const res = await fetch(chrome.runtime.getURL(SCREENSHOT_CSS));
+  const cssText = await res.text();
+  const commands = await chrome.commands.getAll();
+  const shortcut = commands.find(command => command.name === SCREENSHOT_COMMAND)?.shortcut || '';
+  const target = { tabId };
+
+  await chrome.scripting.executeScript({ target, files: SCREENSHOT_FILES });
+  await chrome.scripting.executeScript({
+    target,
+    func: (method, options) => window.wlScreenshot[method](options),
+    args: [method, { cssText, shortcut }]
+  });
+}
+
+async function openScreenshotEditor(tabId) {
+  await injectScreenshotEditor(tabId, 'open');
+  await chrome.storage.session.set({ [SCREENSHOT_TAB_KEY]: tabId });
+}
+
+// 整頁截圖：和 F12「Capture full size screenshot」相同，透過偵錯介面截取整個網頁（含捲動範圍）
+// 做法也和 F12 相同：暫時把頁面尺寸設成整頁大小再截圖，截完還原；只靠 captureBeyondViewport 時，超出一個畫面的部分會重複第一個畫面
+// 接上偵錯介面時 Chrome 會在分頁上方顯示提示列，截完立刻中斷連線，提示列就會消失
+const FULL_PAGE_SETTLE_DELAY = 300; // 整頁截圖改尺寸後，等網頁重畫的毫秒數
+
+async function captureFullPage(tabId) {
+  const target = { tabId };
+  await chrome.debugger.attach(target, '1.3');
+  try {
+    const metrics = await chrome.debugger.sendCommand(target, 'Page.getLayoutMetrics');
+    // cssContentSize 是 CSS 像素；舊版 Chrome 只有 contentSize
+    const size = metrics.cssContentSize || metrics.contentSize;
+    const width = Math.ceil(size.width);
+    const height = Math.ceil(size.height);
+    const { result } = await chrome.debugger.sendCommand(target, 'Runtime.evaluate', { expression: 'window.devicePixelRatio', returnByValue: true });
+    const deviceScaleFactor = result?.value || 1;
+
+    await chrome.debugger.sendCommand(target, 'Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor, mobile: false });
+    try {
+      // 改尺寸後要等網頁用新尺寸重畫，馬上截圖的話超出一個畫面的部分仍是舊畫面
+      // 只等兩個畫格不夠（實測仍會重複），固定再等一段時間
+      await new Promise(resolve => setTimeout(resolve, FULL_PAGE_SETTLE_DELAY));
+      const { data } = await chrome.debugger.sendCommand(target, 'Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: true,
+        fromSurface: true,
+        clip: { x: 0, y: 0, width, height, scale: 1 },
+      });
+      return { dataUrl: `data:image/png;base64,${data}`, width, height };
+    } finally {
+      await chrome.debugger.sendCommand(target, 'Emulation.clearDeviceMetricsOverride').catch(() => {});
+    }
+  } finally {
+    await chrome.debugger.detach(target).catch(() => {});
+  }
+}
+
+// 同一分頁換頁後，網頁內的工具會跟著消失，載入完成時接回去
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  if (changeInfo.status !== 'complete') return;
+  const stored = await chrome.storage.session.get(SCREENSHOT_TAB_KEY);
+  if (stored[SCREENSHOT_TAB_KEY] !== tabId) return;
+  // 瀏覽器內建頁、商店頁無法注入，回到一般網頁時會再接回
+  injectScreenshotEditor(tabId, 'resume').catch(error => console.log('[截圖標註] 此頁無法接回工具', error.message));
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== SCREENSHOT_COMMAND || !tab?.id) return;
+  openScreenshotEditor(tab.id).catch(error => console.error('[截圖標註] 無法開啟', error));
+});
 
 // ── 訊息監聽 ──────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -349,6 +444,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         return;
       }
+
+      // 截圖標註：不需要 Google 登入，必須放在下方取得 token 之前
+      if (message.type === 'openScreenshotEditor') {
+        try {
+          // 只接受擴充功能自己的頁面（popup），網頁內的腳本不能指定要注入的分頁
+          if (sender.tab) throw new Error('不允許的來源');
+          await openScreenshotEditor(message.data.tabId);
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
+        } catch (e) {
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'error', error: e.message } });
+        }
+        return;
+      }
+
+      if (message.type === 'screenshotClosed') {
+        // 被其他分頁接手時不會送這個訊息，這裡只處理使用者在目前記錄的分頁按結束
+        const stored = await chrome.storage.session.get(SCREENSHOT_TAB_KEY);
+        if (stored[SCREENSHOT_TAB_KEY] === sender.tab?.id) await chrome.storage.session.remove(SCREENSHOT_TAB_KEY);
+        sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
+        return;
+      }
+
+      if (message.type === 'captureVisibleTab') {
+        try {
+          // 只允許目前顯示中的分頁截自己的畫面，避免截到使用者已切換過去的其他分頁
+          if (!sender.tab?.active) throw new Error('分頁未顯示');
+          const dataUrl = await chrome.tabs.captureVisibleTab(sender.tab.windowId, { format: 'png' });
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { dataUrl } });
+        } catch (e) {
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { dataUrl: null, error: e.message } });
+        }
+        return;
+      }
+
+      if (message.type === 'captureFullPage') {
+        try {
+          // 只允許目前顯示中分頁的主框架截自己的整頁
+          if (!sender.tab?.active || sender.frameId !== 0) throw new Error('分頁未顯示');
+          const result = await captureFullPage(sender.tab.id);
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: result });
+        } catch (e) {
+          sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { dataUrl: null, error: e.message } });
+        }
+        return;
+      }
+
+      // 帳密管理：先確認來源網站，不符合就不取 token、不碰試算表
+      const pmSite = message.type.startsWith('pm_') ? getPMSite(sender) : null;
+      if (message.type.startsWith('pm_') && !pmSite) throw new Error('不允許的來源');
 
       const interactive = message.type === 'login';
       const token = await getToken(interactive);
@@ -389,17 +533,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       } else if (message.type === 'pm_list') {
         await ensurePMSheet(token, sheetId);
-        const items = await pmReadItems(token, sheetId);
+        // 只回傳目前網站的帳密
+        const items = (await pmReadItems(token, sheetId)).filter(i => i.site === pmSite);
         sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { items } });
 
       } else if (message.type === 'pm_add') {
         await ensurePMSheet(token, sheetId);
         const { site, account, password } = message.data;
-        await pmAddItem(token, sheetId, site, account, password);
+        // 帳密是在登入頁暫存、下一頁才送出，兩頁屬於同一網站才寫入
+        if (site !== pmSite) throw new Error('網站不符');
+        await pmAddItem(token, sheetId, pmSite, account, password);
         sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
 
       } else if (message.type === 'pm_delete') {
         await ensurePMSheet(token, sheetId);
+        // 只能刪除目前網站的列
+        const target = (await pmReadItems(token, sheetId)).find(i => i.row === message.data.row);
+        if (target?.site !== pmSite) throw new Error('網站不符');
         await pmDeleteItem(token, sheetId, message.data.row);
         sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
       }
