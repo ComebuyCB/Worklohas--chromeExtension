@@ -13,7 +13,6 @@ class ZohoPanel {
     this.$btnAnnotate = $('.js-btn-annotate');
     this.$msg = $('.js-msg');
     this.$draft = $('.js-draft');
-    this.$annotateLabel = $('.js-annotate-label');
     this.$shortcut = $('.js-shortcut');
     this.init();
   }
@@ -30,14 +29,13 @@ class ZohoPanel {
     $('.js-btn-shortcut').on('click', () => chrome.tabs.create({ url: SHORTCUTS_URL }));
   }
 
-  // 已有圖片時顯示張數，按鈕也改成繼續標註
+  // 已有圖片時，在按鈕文字後以紅色 badge 顯示張數；沒有圖片時 badge 為空，Bootstrap 會自動隱藏
   async _renderDraft() {
     const stored = await chrome.storage.local.get(DRAFT_KEY);
     const shots = stored[DRAFT_KEY]?.shots || [];
     if (!shots.length) return;
 
-    this.$draft.text(`(${shots.length}張圖)`);
-    this.$annotateLabel.text('繼續標註');
+    this.$draft.text(shots.length);
   }
 
   // 顯示實際生效的快捷鍵；和其他擴充功能衝突時 Chrome 不會指派，這裡會是空的

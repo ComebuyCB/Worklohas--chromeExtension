@@ -336,8 +336,8 @@ const SCREENSHOT_FILES = [
   'src/inject/_screenshot/screenshot.js'
 ];
 
-// method：open 是使用者開啟，resume 是換頁後接回
-async function injectScreenshotEditor(tabId, method) {
+// method：open 是使用者開啟，resume 是換頁後接回；extra 是額外傳給工具的選項
+async function injectScreenshotEditor(tabId, method, extra = {}) {
   const res = await fetch(chrome.runtime.getURL(SCREENSHOT_CSS));
   const cssText = await res.text();
   const commands = await chrome.commands.getAll();
@@ -348,12 +348,13 @@ async function injectScreenshotEditor(tabId, method) {
   await chrome.scripting.executeScript({
     target,
     func: (method, options) => window.wlScreenshot[method](options),
-    args: [method, { cssText, shortcut }]
+    args: [method, { cssText, shortcut, ...extra }]
   });
 }
 
-async function openScreenshotEditor(tabId) {
-  await injectScreenshotEditor(tabId, 'open');
+// isHint：從 popup 開啟，不直接進入截圖模式，改為提示長按右鍵
+async function openScreenshotEditor(tabId, { isHint = false } = {}) {
+  await injectScreenshotEditor(tabId, 'open', { isHint });
   await chrome.storage.session.set({ [SCREENSHOT_TAB_KEY]: tabId });
 }
 
@@ -450,7 +451,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
           // 只接受擴充功能自己的頁面（popup），網頁內的腳本不能指定要注入的分頁
           if (sender.tab) throw new Error('不允許的來源');
-          await openScreenshotEditor(message.data.tabId);
+          await openScreenshotEditor(message.data.tabId, { isHint: true });
           sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
         } catch (e) {
           sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'error', error: e.message } });
