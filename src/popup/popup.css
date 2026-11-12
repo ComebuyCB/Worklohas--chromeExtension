@@ -1,6 +1,7 @@
 html, body { margin: 0; padding: 0; overflow: hidden; }
 body { display: flex; flex-direction: column; width: 400px; height: 500px; background: #e2e8f0; }
-body.is_clipboard_open { width: 800px; }
+/* 顯示中的欄有兩個以上時，加寬成兩欄 */
+body:has(.iframe-col:not([hidden]) ~ .iframe-col:not([hidden])) { width: 800px; }
 
 
 /* ── Header ───────────────────────────────────────────── */
@@ -19,10 +20,11 @@ body.is_authed .wl-auth-status { display: block; }
 .wl-header .wl-dropdown-check { cursor: pointer; }
 
 /* ── Iframe row ───────────────────────────────────────── */
-.iframe-row { display: flex; flex: 1; overflow: hidden; gap: 1px; background: #cbd5e1; }
-.iframe-wrap { position: relative; flex: 1; }
-body #clipboard-wrap { display: none; }
-body.is_clipboard_open #clipboard-wrap { display: block; }
-#zoho-wrap { flex: none; height: 92px; border-bottom: 1px solid #cbd5e1; }
+/* 每欄各佔一半寬度，欄內的區塊由上而下排 */
+.iframe-row { display: flex; flex: 1; min-height: 0; gap: 1px; background: #cbd5e1; }
+.iframe-col { display: flex; flex: 1 1 0; flex-direction: column; min-width: 0; gap: 1px; }
+.iframe-wrap { position: relative; flex: 1; min-height: 0; background: #fff; }
+/* iframe 無法依內容撐高，截圖工具內容固定，直接給內容高度；其餘區塊分剩下的高度 */
+#zoho-wrap { flex: none; height: 92px; }
 .iframe-wrap::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 1px 5px rgba(0,0,0,.06); pointer-events: none; }
 iframe { display: block; width: 100%; height: 100%; border: 0; }

@@ -75,7 +75,7 @@ function setAuthUI(authed) {
 }
 
 function setClipboardVisible(isVisible) {
-  $('body').toggleClass('is_clipboard_open', isVisible);
+  $('#clipboard-wrap').prop('hidden', !isVisible);
 }
 
 function reloadClipboard() {

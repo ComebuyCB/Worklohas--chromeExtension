@@ -44,15 +44,20 @@
       </ul>
     </div>
   </header>
-  <div class="iframe-wrap" id="zoho-wrap">
-    <iframe id="iframe-zoho" src="/src/popup/zoho/index.html"></iframe>
-  </div>
+  <!-- 每欄佔一半寬度：左欄剪貼簿，右欄由上而下排截圖工具、網站功能開關 -->
   <div class="iframe-row">
-    <div class="iframe-wrap" id="clipboard-wrap">
-      <iframe id="iframe-clipboard" src="/src/popup/clipboard/index.html"></iframe>
+    <div class="iframe-col" id="clipboard-wrap" hidden>
+      <div class="iframe-wrap">
+        <iframe id="iframe-clipboard" src="/src/popup/clipboard/index.html"></iframe>
+      </div>
     </div>
-    <div class="iframe-wrap">
-      <iframe id="iframe-toggle" src="/src/popup/toggleInject/index.html"></iframe>
+    <div class="iframe-col">
+      <div class="iframe-wrap" id="zoho-wrap">
+        <iframe id="iframe-zoho" src="/src/popup/zoho/index.html"></iframe>
+      </div>
+      <div class="iframe-wrap">
+        <iframe id="iframe-toggle" src="/src/popup/toggleInject/index.html"></iframe>
+      </div>
     </div>
   </div>
 </body>
