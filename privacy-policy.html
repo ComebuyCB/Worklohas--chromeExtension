@@ -17,9 +17,9 @@
 </head>
 <body>
   <h1>隱私權政策</h1>
-  <p>最後更新：2026 年 7 月 3 日</p>
+  <p>最後更新：2026 年 11 月 10 日</p>
   <p>本擴充功能（Worklohas 的擴充功能）提供多項獨立功能，其中<strong>剪貼簿</strong>與<strong>帳密管理</strong>功能需透過 Google OAuth 登入，且僅對 <strong>@worklohas.com</strong> 網域的 Google 帳號生效；非 Worklohas 團隊成員即使安裝本擴充功能，也無法通過身份驗證使用這兩項功能。</p>
-  <p>其餘功能——NUEIP 快速打卡、Worklohas Portal 介面樣式——不需要 Google 登入，任何安裝本擴充功能的使用者皆可直接使用。</p>
+  <p>其餘功能——NUEIP 快速打卡、Worklohas Portal 介面樣式、截圖標註工具——不需要 Google 登入，任何安裝本擴充功能的使用者皆可直接使用。</p>
 
   <h2>收集的資料</h2>
 
@@ -36,7 +36,16 @@
   <h3>4. NUEIP 出勤資料</h3>
   <p>於 <strong>cloud.nueip.com</strong> 出勤紀錄頁面，讀取該頁面顯示的出勤資料（如上下班時間、請假、加班紀錄），用於判斷是否需要自動送出補卡申請。此資料僅在瀏覽器與 NUEIP 網站之間讀寫，不會傳送至 Google 或任何其他第三方。</p>
 
-  <h3>5. 本機偏好設定</h3>
+  <h3>5. 截圖資料（截圖標註工具）</h3>
+  <p>僅在使用者<strong>主動開啟</strong>截圖工具（點擊 Popup 按鈕或按下快捷鍵）後，才會擷取目前分頁的畫面；整頁截圖則需使用者在工具中另外觸發。擷取的內容包含：</p>
+  <ul>
+    <li>使用者框選範圍或整個網頁的截圖圖片</li>
+    <li>使用者在圖片上加入的標註（線條、框線、文字等）</li>
+    <li>截圖當下的網頁網址與畫面捲動位置，用於「回到該頁面並標示截圖位置」</li>
+  </ul>
+  <p>截圖可能包含該網頁上顯示的任何內容，請使用者自行留意截取範圍。上述資料<strong>僅儲存於使用者瀏覽器本機（chrome.storage.local）</strong>，不會上傳至任何伺服器；只有在使用者按下「複製」或「下載」時，圖片才會放入使用者的剪貼簿或存成檔案。</p>
+
+  <h3>6. 本機偏好設定</h3>
   <p>各網站功能開關、自動補卡時間偏好、帳密管理面板位置與收合狀態、Google 試算表 ID 快取等介面設定，僅儲存於使用者瀏覽器的本機儲存空間（chrome.storage.local），不會離開使用者裝置。</p>
 
   <h2>資料用途</h2>
@@ -45,6 +54,7 @@
     <li>讀寫使用者個人 Google Sheets 中的剪貼簿資料</li>
     <li>儲存與自動填入使用者於 worklohas.com / worklohas.dev 網域的帳號密碼</li>
     <li>讀取 NUEIP 出勤資料以提供自動補卡功能</li>
+    <li>擷取使用者指定的網頁畫面並提供標註、複製、下載功能</li>
     <li>記住使用者的介面偏好設定，改善使用體驗</li>
   </ul>
 
@@ -53,23 +63,33 @@
     <li>剪貼簿資料與帳號密碼資料，皆儲存於<strong>使用者自己的 Google 試算表</strong>（分別位於 ClipBoard、Passwords 分頁），Worklohas 團隊或本擴充功能開發者皆無法存取該試算表</li>
     <li>本擴充功能透過 Google Sheets API 讀寫上述試算表內容，並透過 Google Drive API（<code>drive.file</code> 權限範圍）搜尋或建立該試算表檔案——此權限範圍僅限本擴充功能自己建立或開啟過的檔案，無法讀取使用者雲端硬碟中的其他檔案</li>
     <li>NUEIP 出勤資料僅在使用者瀏覽器與 cloud.nueip.com 之間傳輸，不會經過 Google 或任何第三方伺服器</li>
-    <li>本機偏好設定僅存於使用者瀏覽器的 chrome.storage.local，不會上傳或分享</li>
+    <li>截圖與標註資料、本機偏好設定僅存於使用者瀏覽器的 chrome.storage.local，不會上傳或分享</li>
     <li>本擴充功能不會將任何資料傳送至 Worklohas 以外的第三方伺服器，也不會出售任何使用者資料</li>
   </ul>
 
   <h2>使用者資料管理</h2>
   <ul>
     <li>帳密管理面板中的每筆帳密皆可由使用者自行刪除</li>
+    <li>截圖清單中的每張截圖皆可由使用者個別移除或全部移除</li>
     <li>使用者可直接於 Google 試算表中編輯或刪除剪貼簿與帳密資料</li>
     <li>於擴充功能內登出 Google 帳號，將清除本機快取的試算表 ID；移除擴充功能則會清除所有本機偏好設定</li>
   </ul>
 
   <h2>使用權限說明</h2>
   <ul>
-    <li><strong>storage</strong>：儲存前述本機偏好設定</li>
+    <li><strong>storage</strong>：儲存前述本機偏好設定與截圖資料</li>
+    <li><strong>unlimitedStorage</strong>：截圖圖片（尤其整頁截圖）容量較大，避免超出預設的本機儲存上限；資料仍只存在使用者瀏覽器</li>
     <li><strong>identity</strong>：處理 Google OAuth 登入與權杖管理</li>
-    <li><strong>clipboardWrite</strong>：將剪貼簿項目內容複製到使用者剪貼簿</li>
-    <li><strong>host permissions</strong>（nueip.com、worklohas.com、worklohas.dev、Google APIs）：僅用於在對應網站注入上述功能，不會存取其他網站內容</li>
+    <li><strong>clipboardWrite</strong>：將剪貼簿項目內容、截圖圖片與網址複製到使用者剪貼簿</li>
+    <li><strong>activeTab</strong>、<strong>scripting</strong>：使用者主動開啟截圖工具時，將工具介面注入目前分頁並擷取可見畫面</li>
+    <li><strong>debugger</strong>：僅用於「整頁截圖」，使用與 Chrome 開發者工具「Capture full size screenshot」相同的方式截取整個網頁；截圖完成後立即中斷連線，不讀取、不修改網頁內容或網路請求</li>
+    <li><strong>host permissions</strong>
+      <ul>
+        <li>nueip.com、worklohas.com、worklohas.dev：在對應網站注入打卡、帳密管理、介面樣式功能</li>
+        <li>Google APIs：讀寫使用者自己的 Google 試算表</li>
+        <li>所有網站（&lt;all_urls&gt;）：僅供截圖工具使用——讓使用者在任意網頁開啟工具、在同一分頁換頁後保留工具並繼續截圖。未開啟截圖工具時，本擴充功能不會在這些網站注入任何程式或讀取其內容</li>
+      </ul>
+    </li>
   </ul>
 
   <h2>聯絡方式</h2>
