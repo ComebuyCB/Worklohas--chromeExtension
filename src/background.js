@@ -352,9 +352,9 @@ async function injectScreenshotEditor(tabId, method, extra = {}) {
   });
 }
 
-// isHint：從 popup 開啟，不直接進入截圖模式，改為提示長按右鍵
-async function openScreenshotEditor(tabId, { isHint = false } = {}) {
-  await injectScreenshotEditor(tabId, 'open', { isHint });
+// isIdle：從 popup 開啟，不直接進入截圖模式，維持一般模式
+async function openScreenshotEditor(tabId, { isIdle = false } = {}) {
+  await injectScreenshotEditor(tabId, 'open', { isIdle });
   await chrome.storage.session.set({ [SCREENSHOT_TAB_KEY]: tabId });
 }
 
@@ -451,7 +451,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
           // 只接受擴充功能自己的頁面（popup），網頁內的腳本不能指定要注入的分頁
           if (sender.tab) throw new Error('不允許的來源');
-          await openScreenshotEditor(message.data.tabId, { isHint: true });
+          await openScreenshotEditor(message.data.tabId, { isIdle: true });
           sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'success' } });
         } catch (e) {
           sendResponse({ from: 'background.js', to: message.from, type: 'RESPONSE', data: { status: 'error', error: e.message } });

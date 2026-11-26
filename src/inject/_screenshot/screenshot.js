@@ -5,7 +5,6 @@
 
 	const MIN_BOX_SIZE = 8 // 拖曳小於此 px 視為誤觸
 	const MIN_SHOT_SIZE = 100 // 藍框寬高都要至少此 px 才截圖；調整藍框大小也不能小於此
-	const STATUS_TOO_SMALL = `範圍太小，至少 ${MIN_SHOT_SIZE} × ${MIN_SHOT_SIZE}`
 	const MIN_LINE_LENGTH = 4 // 直線短於此 px 視為誤觸
 	const SAVE_DELAY = 300 // 打字時延遲儲存的毫秒數
 	const SYNC_DELAY = 500 // 畫圖或調整藍框後，延遲更新右側欄圖片的毫秒數，避免太常重繪
@@ -20,10 +19,8 @@
 	const PANEL_MAX_WIDTH = 900 // 上限；另外至少留 PANEL_PAGE_GAP 給網頁
 	const PANEL_PAGE_GAP = 80
 	const CARD_FADE_DELAY = 200 // 刪除卡片時淡出的毫秒數，要等於 CSS .screenshot_image.is_removing 的 transition
-	const HINT_DELAY = 3500 // 從 popup 開啟時的提示：顯示 3 秒後淡出，要等於 CSS 動畫長度
-	const HINT_TEXT = '長按右鍵開始截圖'
 	const TOOLS_WIDTH = 32 // 複製、下載按鈕的寬度；框靠近視窗右緣時改放框內
-	const REMOVE_OFFSET = 13 // × 超出框線的距離；框貼齊視窗邊緣時改放框內
+	const REMOVE_OFFSET = 13 // 刪除鈕超出框線的距離；框貼齊視窗邊緣時改放框內
 	const CONTROL_MARGIN = 9 // 畫的內容貼齊視窗邊緣時，控制點離邊緣的距離，才按得到
 	const DRAW_BAR_WIDTH = 240 // 畫圖工具列的寬高，框下方或右方放不下時調整位置，要等於 CSS（6 顆 32px 按鈕 + 48px 粗細）
 	const DRAW_BAR_HEIGHT = 38
@@ -50,11 +47,11 @@
 	const MIN_TEXT_HEIGHT = 30
 	const FONT_FAMILY = 'system-ui, "Microsoft JhengHei", "PingFang TC", sans-serif'
 	const STATUS_CAPTURE_FAILED = '截圖失敗，請再試一次'
-	const STATUS_IDLE = '' // 一般模式不顯示狀態文字
-	const STATUS_CAPTURE = '截圖中'
 	// 草稿分開存：文字資料常常更新，圖片很大且只寫一次（popup/zoho/main.js 也讀 DRAFT_KEY）
 	const DRAFT_KEY = 'wl_report_draft'
 	const IMAGE_KEY_PREFIX = 'wl_report_image_'
+	const GOTO_KEY = 'wl_report_goto' // 按「前往」時記下要顯示位置的圖，換頁接回後捲到該位置
+	const GOTO_EXPIRE = 60 * 1000 // 超過此毫秒數才接回就不處理（換頁失敗或使用者改去別頁）
 
 	// 網站沒有載入 icon 字型，Shadow DOM 內直接用 SVG
 	const SVG_ATTRS = 'viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'
@@ -68,7 +65,6 @@
 	const ICON_RECT = `<svg ${SVG_ATTRS}><rect x="4" y="6" width="16" height="12"/></svg>`
 	const ICON_TEXT = `<svg ${SVG_ATTRS}><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg>`
 	// 工具列的圖示，尺寸由 CSS 放大
-	const ICON_CLOSE =`<svg ${SVG_ATTRS}><path d="M6 6l12 12M18 6L6 18"/></svg>`
 	const ICON_CROP = `<svg ${SVG_ATTRS}><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>`
 	// 截圖清單的開關：方框右側一條側欄、箭頭朝右；展開、收合用同一個圖示，像開關一樣切換
 	const ICON_PANEL = `<svg ${SVG_ATTRS}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18M8 9l3 3-3 3"/></svg>`
@@ -101,7 +97,7 @@
 				cssText: '',
 				shortcut: '', // 目前的快捷鍵文字，content script 無法讀取 chrome.commands，由 background.js 傳入
 				isResume: false, // 同一分頁換頁後接回，右側欄維持換頁前的狀態
-				isHint: false, // 從 popup 開啟：不進入截圖模式，只提示長按右鍵
+				isIdle: false, // 從 popup 開啟：不進入截圖模式，維持一般模式
 				onClose: null,
 			}
 
@@ -146,11 +142,17 @@
 			this.toolbarDrag = null // 拖曳工具列時，游標與工具列左上角的距離
 			this.toolbarPos = null // 展開右側欄前拖曳到的位置 { left, top }，收合時放回去；沒拖曳過是 null
 			this.lastPointer = null
-			this.isBusy = true // 截圖或還原草稿時不接受框選
+			this.isBusy = true // 截圖時不接受框選
+			this.draftLoading = null // 載入草稿圖片中的 Promise；儲存草稿要等它完成
+			this.isDraftLoaded = false // 草稿圖片載入完成才可寫入草稿
+			this.isClosed = false
+			this.isTakenOver = false // 草稿已被其他分頁接手，不可再寫入
+			this.dialogShot = null // 「不在此頁」對話框對應的圖
+			this.draftQueue = [] // 還在載入圖片的草稿圖（沒有 bitmap），清單上顯示讀取中
 			this.isClearPending = false
 			this.snapshotTimer = null
 			this.statusTimer = null
-			this.countdown = null // 一般模式按數字鍵的倒數：{ remain, timer }，倒數完凍結畫面進入截圖/編輯模式
+			this.countdown = null // 一般模式按數字鍵的倒數：{ remain, timer }，倒數完凍結畫面進入截圖模式
 			this.saveTimer = null
 			this.clearTimer = null
 			this.syncTimer = null
@@ -163,20 +165,21 @@
 		async init() {
 			this._build()
 			this.bindEvents()
-			await this._restoreDraft()
+			// 先讀草稿的文字資料（很小），圖片很大、解碼慢，等進入截圖模式後再載入，不拖慢凍結畫面
+			const draft = await this._readDraft()
 			this.isBusy = false
-			// 快捷鍵開啟時直接進入截圖模式（凍結畫面）；換頁接回時維持一般模式，不擋住使用者正在操作的網頁
-			// 從 popup 開啟時也維持一般模式，提示長按右鍵開始截圖
-			if (this.isResume) {
+			// 快捷鍵開啟時直接進入截圖模式（凍結畫面）；換頁接回、從 popup 開啟時維持一般模式，不擋住使用者正在操作的網頁
+			if (this.isResume || this.isIdle) {
 				this._renderMarks()
-			} else if (this.isHint) {
-				this._renderMarks()
-				this.showHint()
 			} else {
 				await this.toggleCapture()
 			}
 			if (this.shouldOpenPanel) this._openPanel()
+			this.draftLoading = this._loadDraftImages(draft)
+			await this.draftLoading
+			this.draftLoading = null
 			await this._saveDraft() // 接手草稿，其他分頁開著的標註畫面會自動關閉
+			if (this.isResume) await this._resumeGoto()
 			log('開啟標註模式', { 網址: location.href, 視窗: `${window.innerWidth} × ${window.innerHeight}`, 草稿: this._summary() })
 		}
 
@@ -242,6 +245,7 @@
 			this.$gallery[0].addEventListener('wheel', e => e.preventDefault(), { passive: false })
 			this.$editor.on('click', '.js-shot-goto', e => this._viewShot(this._shotOfTool(e)))
 			this.$editor.on('click', '.js-dialog-cancel', () => this._closeDialog())
+			this.$editor.on('click', '.js-dialog-url, .js-dialog-go', e => this._goToShot(e))
 			this.$editor.on('click', '.js-shot-copy', e => this._copy(this._shotOfTool(e)))
 			this.$editor.on('click', '.js-shot-download', e => this._download(this._shotOfTool(e)))
 			this.$editor.on('click', '.js-panel-toggle', () => this._togglePanel())
@@ -259,12 +263,13 @@
 
 		// 內容已自動儲存，關閉不會遺失；isTakenOver 表示草稿已被其他分頁接手，不可再寫入
 		close({ isTakenOver = false } = {}) {
+			this.isClosed = true
+			this.isTakenOver = isTakenOver
 			clearTimeout(this.statusTimer)
 			clearTimeout(this.clearTimer)
 			clearTimeout(this.syncTimer)
 			clearTimeout(this.snapshotTimer)
 			clearTimeout(this.countdown?.timer)
-			clearTimeout(this.hintTimer)
 			window.removeEventListener('keydown', this._onWindowKeydown, true)
 			window.removeEventListener('scroll', this._onScroll, true)
 			window.removeEventListener('resize', this._onResize)
@@ -331,10 +336,12 @@
 			this.$draft.prop('hidden', true)
 			this.$editor.toggleClass('is_capture', this.isCapture).removeClass('is_drawing')
 			// 文字固定，用按下的狀態表示是否在模式中
-			this.$captureToggle.toggleClass('is_active', this.isCapture).attr({ 'title': this.isCapture ? '離開截圖/編輯模式' : '進入截圖/編輯模式', 'aria-pressed': String(this.isCapture) })
-			this.$modeLabel.text(this.isCapture ? '(編輯模式)' : '(一般模式)')
+			this.$captureToggle.toggleClass('is_active', this.isCapture).attr({ 'title': this.isCapture ? '離開截圖模式' : '進入截圖模式', 'aria-pressed': String(this.isCapture) })
+			this.$modeLabel.text(this.isCapture ? '(截圖中...)' : '')
 			this._setStatus()
 
+			// 凍結畫面進入截圖模式時收起截圖清單，不擋住框選範圍；放大編輯（isFreeze 為 false）是從清單點進來的，維持原狀
+			if (captured && this._isPanelOpen()) this._closePanel()
 			if (this.isCapture) {
 				this._focusEditor()
 			} else {
@@ -489,13 +496,13 @@
 					<!-- 收合時的位置：放在右側欄後面，不會被蓋住 -->
 					<div class="screenshot_toolbar js-toolbar">
 						<div class="screenshot_toolbar--head js-toolbar-head">
-							<span class="screenshot_toolbar_title">截圖工具 <span class="_mode js-mode-label">(一般模式)</span></span>
+							<span class="screenshot_toolbar_title">截圖工具 <span class="_mode js-mode-label"></span></span>
 							<button class="screenshot_iconBtn js-help-toggle" type="button" title="操作說明" aria-label="操作說明" aria-expanded="false">${ICON_HELP}</button>
-							<button class="screenshot_iconBtn is_danger js-close" type="button" title="結束" aria-label="結束">${ICON_CLOSE}</button>
+							<button class="screenshot_iconBtn is_danger is_withText js-close" type="button">結束</button>
 						</div>
 						<div class="screenshot_toolbar--body">
-							<button class="screenshot_captureBtn js-capture-toggle" type="button" title="進入截圖/編輯模式" aria-pressed="false">${ICON_CROP}截圖/編輯</button>
-							<span class="screenshot_status js-status" role="status">${STATUS_IDLE}</span>
+							<button class="screenshot_captureBtn js-capture-toggle" type="button" title="進入截圖模式" aria-pressed="false">${ICON_CROP}截圖編輯</button>
+							<span class="screenshot_status js-status" role="status"></span>
 							<button class="screenshot_iconBtn js-panel-toggle" type="button" title="截圖清單" aria-label="截圖清單" aria-expanded="false">${ICON_PANEL}<span class="_count js-panel-count"></span></button>
 						</div>
 						<div class="screenshot_help js-help" role="note" hidden>${this._helpTable(this._mainHelp())}</div>
@@ -729,10 +736,8 @@
 				this._onBlankClick()
 				return
 			}
-			if (rect.width < MIN_SHOT_SIZE || rect.height < MIN_SHOT_SIZE) {
-				this._setStatus(STATUS_TOO_SMALL)
-				return
-			}
+			// 範圍太小不截圖，也不顯示提示
+			if (rect.width < MIN_SHOT_SIZE || rect.height < MIN_SHOT_SIZE) return
 			await this._setCrop(rect)
 		}
 
@@ -955,7 +960,6 @@
 			if (item) {
 				this._changeItemSize(shot, item, direction)
 				this._setNextSize(item) // 下一筆也沿用
-				this._setStatus(this._sizeText(item))
 			} else {
 				const isText = this.activeTool === 'text'
 				if (isText) {
@@ -963,7 +967,6 @@
 				} else {
 					this.lineWidth = this._nextLineWidth(this.lineWidth, direction)
 				}
-				this._setStatus(isText ? `文字 ${this.textSize}px` : `線條 ${this.lineWidth}px`)
 			}
 			this._syncShots()
 		}
@@ -998,10 +1001,6 @@
 			} else {
 				this.lineWidth = item.width
 			}
-		}
-
-		_sizeText(item) {
-			return item.type === 'text' ? `文字 ${item.size}px` : `線條 ${item.width}px`
 		}
 
 		_nextTextSize(size, direction) {
@@ -1633,7 +1632,7 @@
 			return { left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, height: `${box.h * 100}%` }
 		}
 
-		// 只復原畫的內容，不動藍框（藍框用 × 移除）。沒有 focus 時復原最上層、有畫內容的藍框；其他頁的看不到，不會被復原到
+		// 只復原畫的內容，不動藍框（藍框用刪除鈕移除）。沒有 focus 時復原最上層、有畫內容的藍框；其他頁的看不到，不會被復原到
 		_undo() {
 			// 顯示位置時不能編輯
 			if (this._isLocating()) return
@@ -1872,7 +1871,7 @@
 			const $crop = $(`
 				<div class="screenshot_crop js-crop-box js-box">
 					<span class="_move js-crop-move" title="按住拖曳可移動藍框">${this._shotNumber(shot)}</span>
-					<button class="_remove js-crop-remove" type="button" aria-label="移除藍框和裡面畫的內容">×</button>
+					<button class="_remove js-crop-remove" type="button" title="刪除此圖" aria-label="移除藍框和裡面畫的內容">${ICON_TRASH}</button>
 					${SHOT_TOOLS}
 					${DRAW_TOOLS}
 					<span class="_handle js-crop-handle" title="拖曳調整大小"></span>
@@ -1904,7 +1903,7 @@
 			this._syncShots()
 		}
 
-		// 框貼齊視窗邊緣時，× 和工具列超出去就按不到了，要改放框內
+		// 框貼齊視窗邊緣時，刪除鈕和工具列超出去就按不到了，要改放框內
 		_syncCropLayout($box, shot) {
 			const { clientWidth, clientHeight } = this.$stage[0]
 			// 整頁截圖的框元素就是畫面範圍，工具列一律放框內
@@ -2082,41 +2081,68 @@
 		_syncPanel() {
 			if (!this._isPanelOpen()) return
 
-			// 張數用紅色圓點顯示；沒有圖時不顯示
-			this.$panelTitleCount.text(this.shots.length || '')
+			this._syncPanelCounts()
+			const entries = this._panelEntries(this.panelTab)
+			this.$panelEmpty.prop('hidden', entries.length > 0).text(this.panelTab === 'page' ? '還沒有整頁截圖，截圖模式下在空白處雙擊中鍵。' : '還沒有截圖，進入截圖模式後框選範圍。')
+			this.$panelImages.empty()
+			// 草稿圖片還在載入的先顯示讀取中的卡片，載入後由 _showLoadedImage 換掉
+			entries.forEach((shot, index) => this.$panelImages.append(this.draftQueue.includes(shot) ? this._loadingCard(shot, index + 1) : this._panelCard(shot, index + 1)))
+			this._syncFocusUI()
+		}
+
+		// 張數用紅色圓點顯示，含還在載入的草稿圖片；沒有圖時不顯示
+		_syncPanelCounts() {
+			this.$panelTitleCount.text(this.shots.length + this.draftQueue.length || '')
 			this.$panelTabs.each((_, tab) => {
 				const isActive = tab.dataset.tab === this.panelTab
 				$(tab).attr('aria-selected', String(isActive)).toggleClass('is_active', isActive)
-				$(tab).find('.js-tab-count').text(this._groupShots(tab.dataset.tab).length || '')
+				$(tab).find('.js-tab-count').text(this._panelEntries(tab.dataset.tab).length || '')
 			})
-			const shots = this._groupShots(this.panelTab)
-			this.$panelEmpty.prop('hidden', shots.length > 0).text(this.panelTab === 'page' ? '還沒有整頁截圖，截圖模式下在空白處雙擊中鍵。' : '還沒有截圖，進入截圖模式後框選範圍。')
-			this.$panelImages.empty()
+		}
 
-			shots.forEach((shot, index) => {
-				const $item = $(`
-					<figure class="screenshot_image js-image" data-shot-id="${shot.id}">
-						<figcaption class="screenshot_image--head">
-							<span class="screenshot_image_index" title="第 ${index + 1} 張${shot.isFullPage ? '' : '，對應藍框左上角的編號'}">${index + 1}</span>
-							<span class="screenshot_image_url js-image-url"></span>
-							<button class="screenshot_image_copyUrl js-image-copy-url" type="button" title="複製網址" aria-label="複製網址">${ICON_COPY}</button>
-							<button class="screenshot_image_remove js-image-remove" type="button" data-id="${shot.id}" title="刪除此圖" aria-label="刪除此圖">${ICON_TRASH}</button>
-						</figcaption>
-						<div class="screenshot_image--frame js-image-frame">
-							<div class="screenshot_imageTools">
-								<button class="_tool _tool_view js-shot-goto" type="button" title="在網頁上顯示位置" aria-label="在網頁上顯示位置">${ICON_EYE}</button>
-								<button class="_tool _tool_copy js-shot-copy" type="button" title="複製圖片" aria-label="複製圖片">${ICON_COPY}</button>
-								<button class="_tool _tool_download js-shot-download" type="button" title="下載圖片" aria-label="下載圖片">${ICON_DOWNLOAD}</button>
-							</div>
+		// 清單順序：已載入的草稿圖、載入中的草稿圖、這次新增的圖；載入中的草稿圖一定排在已載入的後面
+		_panelEntries(group) {
+			const loadedCount = this._loadedDraftCount()
+			return [...this.shots.slice(0, loadedCount), ...this.draftQueue, ...this.shots.slice(loadedCount)].filter(shot => this._groupOf(shot) === group)
+		}
+
+		_loadedDraftCount() {
+			return this.shots.filter(shot => shot.isFromDraft).length
+		}
+
+		_loadingCard(shot, number) {
+			return $(`
+				<figure class="screenshot_image is_loading js-image-loading" data-shot-id="${shot.id}" data-index="${number}" aria-busy="true">
+					<figcaption class="screenshot_image--head">
+						<span class="screenshot_image_index">${number}</span>
+					</figcaption>
+					<div class="screenshot_image--frame"><div class="screenshot_image_skeleton" role="img" aria-label="圖片載入中"></div></div>
+				</figure>
+			`)
+		}
+
+		_panelCard(shot, number) {
+			const $item = $(`
+				<figure class="screenshot_image js-image" data-shot-id="${shot.id}">
+					<figcaption class="screenshot_image--head">
+						<span class="screenshot_image_index" title="第 ${number} 張${shot.isFullPage ? '' : '，對應藍框左上角的編號'}">${number}</span>
+						<span class="screenshot_image_url js-image-url"></span>
+						<button class="screenshot_image_copyUrl js-image-copy-url" type="button" title="複製網址" aria-label="複製網址">${ICON_COPY}</button>
+						<button class="screenshot_image_remove js-image-remove" type="button" data-id="${shot.id}" title="刪除此圖" aria-label="刪除此圖">${ICON_TRASH}</button>
+					</figcaption>
+					<div class="screenshot_image--frame js-image-frame">
+						<div class="screenshot_imageTools">
+							<button class="_tool _tool_view js-shot-goto" type="button" title="在網頁上顯示位置" aria-label="在網頁上顯示位置">${ICON_EYE}</button>
+							<button class="_tool _tool_copy js-shot-copy" type="button" title="複製圖片" aria-label="複製圖片">${ICON_COPY}</button>
+							<button class="_tool _tool_download js-shot-download" type="button" title="下載圖片" aria-label="下載圖片">${ICON_DOWNLOAD}</button>
 						</div>
-					</figure>
-				`)
-				// 只顯示網域和路徑，太長由 CSS 截斷；完整網址放在 title
-				$item.find('.js-image-url').text(this._displayUrl(shot.url)).attr('title', shot.url)
-				$item.find('.js-image-frame').prepend(this._thumbnail(shot))
-				this.$panelImages.append($item)
-			})
-			this._syncFocusUI()
+					</div>
+				</figure>
+			`)
+			// 只顯示網域和路徑，太長由 CSS 截斷；完整網址放在 title
+			$item.find('.js-image-url').text(this._displayUrl(shot.url)).attr('title', shot.url)
+			$item.find('.js-image-frame').prepend(this._thumbnail(shot))
+			return $item
 		}
 
 		_setPanelTab(tab) {
@@ -2229,6 +2255,7 @@
 			// 網址來自當時的 location.href，仍只接受 http(s)，避免產生可執行的連結
 			if (!/^https?:/i.test(shot.url)) return
 
+			this.dialogShot = shot
 			this.$dialogLinks.attr('href', shot.url)
 			this.$dialogUrl.text(shot.url)
 			this.$dialog.prop('hidden', false)
@@ -2237,8 +2264,46 @@
 		}
 
 		_closeDialog() {
+			this.dialogShot = null
 			this.$dialog.prop('hidden', true)
 			this._focusEditor()
+		}
+
+		// 對話框的「前往」或網址：先記下是哪張圖，換頁接回後由 _resumeGoto 捲到截圖位置
+		// Ctrl、Shift、中鍵等開新分頁時交給瀏覽器，新分頁沒有工具，不記
+		async _goToShot(e) {
+			const shot = this.dialogShot
+			if (!shot || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
+			e.preventDefault()
+			await this._writeStorage({ [GOTO_KEY]: { id: shot.id, time: Date.now() } })
+			this._flushSave()
+			location.href = shot.url
+			// 只差 # 的網址不會重新載入，工具還在，直接顯示位置
+			if (location.href === shot.url) {
+				await this._removeStored([GOTO_KEY])
+				this._closeDialog()
+				this._focusShot(shot)
+			}
+		}
+
+		// 換頁接回時，若是按「前往」過來的，展開截圖清單、選取那張卡片並捲到截圖位置
+		async _resumeGoto() {
+			const goto = (await chrome.storage.local.get(GOTO_KEY))[GOTO_KEY]
+			if (!goto || this.isClosed) return
+			await this._removeStored([GOTO_KEY])
+			if (Date.now() - goto.time > GOTO_EXPIRE) return
+
+			const shot = this.shots.find(item => item.id === goto.id)
+			// 網站轉址到其他網址時，位置不一定對得上，不顯示
+			if (!shot || shot.url !== location.href) {
+				log('前往後網址不同，不顯示截圖位置', { 圖片網址: shot?.url, 目前網址: location.href })
+				return
+			}
+			if (!this._isPanelOpen()) this._openPanel()
+			// 先把卡片捲進清單可見範圍，再平滑捲動網頁，避免打斷網頁的捲動
+			this.$panelImages.children(`[data-shot-id="${shot.id}"]`)[0]?.scrollIntoView({ block: 'nearest' })
+			this._focusShot(shot)
+			log('前往後顯示截圖位置', { 第幾張: this._shotNumber(shot) })
 		}
 
 		// ── 放大編輯 ───────────────────────────────────────
@@ -2315,7 +2380,7 @@
 		// 工具列在右側欄內時按鈕是收合，張數已顯示在清單標題；沒有圖時不顯示張數
 		_syncPanelToggle() {
 			const isOpen = this._isPanelOpen()
-			const count = this.shots.length
+			const count = this.shots.length + this.draftQueue.length // 含還在載入的草稿圖片
 			const title = isOpen ? '收合截圖清單' : `截圖清單（${count} 張）`
 			this.$toggle.attr({ 'title': title, 'aria-label': title })
 			this.$panelCount.text(isOpen || !count ? '' : count)
@@ -2345,6 +2410,7 @@
 			const imageKeys = Object.keys(stored).filter(key => key.startsWith(IMAGE_KEY_PREFIX))
 			this.shots.forEach(shot => shot.bitmap.close())
 			this.shots = []
+			this.draftQueue = []
 			this.focusedShot = null
 			this.pendingShots.clear()
 			this.redoStacks.clear()
@@ -2368,7 +2434,10 @@
 		async _saveDraft() {
 			clearTimeout(this.saveTimer)
 			this.saveTimer = null
-			const shots = this.shots.map(({ bitmap, dataUrl, isDetached, ...shot }) => shot)
+			// 草稿圖片還在載入時先等，否則存進去的只有這次新增的圖，會蓋掉舊草稿
+			if (this.draftLoading) await this.draftLoading
+			if (!this.isDraftLoaded || this.isTakenOver) return
+			const shots = this.shots.map(({ bitmap, dataUrl, isDetached, isFromDraft, ...shot }) => shot)
 			await this._writeStorage({ [DRAFT_KEY]: { editorId: this.editorId, shots, isPanelOpen: this._isPanelOpen(), panelWidth: this.panelWidth, panelCols: this.panelCols } })
 		}
 
@@ -2395,9 +2464,10 @@
 		}
 
 		// 草稿沒有引用的圖片，介面上看不到也刪不掉，只會一直佔空間（舊版或中途失敗留下的）
-		async _removeOrphanImages(shots) {
-			const used = new Set(shots.map(shot => `${IMAGE_KEY_PREFIX}${shot.id}`))
+		// 取得 key 之後才看目前的圖片：載入草稿期間新截的圖也在 this.shots，不會被誤刪
+		async _removeOrphanImages() {
 			const keys = await chrome.storage.local.getKeys()
+			const used = new Set(this.shots.map(shot => `${IMAGE_KEY_PREFIX}${shot.id}`))
 			const orphans = keys.filter(key => key.startsWith(IMAGE_KEY_PREFIX) && !used.has(key))
 			if (!orphans.length) return
 
@@ -2405,33 +2475,83 @@
 			log('已清除沒有被引用的舊圖片', { 張數: orphans.length })
 		}
 
-		async _restoreDraft() {
+		// 讀草稿的文字資料並套用設定；編號先接續草稿，載入圖片前新增的內容才不會和草稿重複
+		async _readDraft() {
 			const stored = await chrome.storage.local.get(DRAFT_KEY)
 			const draft = stored[DRAFT_KEY]
 			this.shouldOpenPanel = this.isResume && Boolean(draft?.isPanelOpen)
 			if (draft?.panelWidth) this._setPanelWidth(draft.panelWidth)
 			this._setPanelCols(draft?.panelCols ?? this.panelCols, { isSave: false })
-			await this._removeOrphanImages(draft?.shots || [])
-			if (!draft?.shots?.length) return
+			const shots = draft?.shots || []
+			const items = shots.flatMap(shot => shot.items || [])
+			this.nextItemId = Math.max(0, ...items.map(item => item.id)) + 1
+			this.nextZ = Math.max(0, ...shots.map(shot => shot.z || 0)) + 1
+			return draft
+		}
 
-			const keys = draft.shots.map(shot => `${IMAGE_KEY_PREFIX}${shot.id}`)
-			const images = await chrome.storage.local.get(keys)
+		// 載入草稿圖片，排在這次新增的圖片前面；載入完成前不寫入草稿（_saveDraft 會等待），以免蓋掉還沒載入的圖
+		// 每張各自讀取、解碼，依草稿順序一張張放進清單；還沒載入的在清單上先顯示讀取中的卡片（draftQueue）
+		async _loadDraftImages(draft) {
+			// 舊版草稿的紅框和全螢幕標記不沿用，沒有藍框的圖就框住整張
+			this.draftQueue = (draft?.shots || []).map(({ marks, isFull, ...shot }) => ({ ...shot, crop: shot.crop || { x: 0, y: 0, w: 1, h: 1 }, items: shot.items || [], isDetached: false }))
+			this._syncPanel()
+			this._syncPanelToggle()
+			const decodes = this.draftQueue.map(shot => this._decodeDraftImage(shot))
 
-			for (const shot of draft.shots) {
-				const dataUrl = images[`${IMAGE_KEY_PREFIX}${shot.id}`]
-				if (!dataUrl) {
-					log('草稿圖片遺失，略過', shot.url)
+			for (const [index, shot] of [...this.draftQueue].entries()) {
+				const bitmap = await decodes[index]
+				// 載入中按了「全部移除」，這張已不在佇列
+				if (!this.draftQueue.includes(shot)) {
+					bitmap?.close()
 					continue
 				}
-				// 舊版草稿的紅框和全螢幕標記不沿用，沒有藍框的圖就框住整張
-				const { marks, isFull, ...rest } = shot
-				this.shots.push({ ...rest, crop: shot.crop || { x: 0, y: 0, w: 1, h: 1 }, items: shot.items || [], bitmap: await createImageBitmap(this._dataUrlToBlob(dataUrl)), dataUrl: null, isDetached: false })
+				this.draftQueue.splice(this.draftQueue.indexOf(shot), 1)
+				if (!bitmap) {
+					this.$panelImages.find(`.js-image-loading[data-shot-id="${shot.id}"]`).remove()
+					continue
+				}
+				// 草稿圖都排在最前面，接在已載入的草稿圖後面
+				Object.assign(shot, { bitmap, dataUrl: null, isFromDraft: true })
+				this.shots.splice(this._loadedDraftCount(), 0, shot)
+				// 關閉後不用顯示，但資料要留著，關閉時的儲存才不會漏掉草稿
+				if (this.isClosed) {
+					bitmap.close()
+					continue
+				}
+				this._showLoadedImage(shot)
 			}
 
-			const items = this.shots.flatMap(shot => shot.items)
-			this.nextItemId = Math.max(0, ...items.map(item => item.id)) + 1
-			this.nextZ = Math.max(0, ...this.shots.map(shot => shot.z)) + 1
+			this.isDraftLoaded = true
+			if (this.isClosed) return
+			if (this.frozenShot) this.galleryIndex = this.shots.indexOf(this.frozenShot)
+			this._syncPanel() // 更新張數、沒有圖時的提示
+			await this._removeOrphanImages()
+			if (this.isClosed) return
+			// 正在框選、畫圖時重繪會打斷操作，交給操作結束後的重繪
+			if (!this.dragStart && !this.moving && !this.drawing && !this.adjusting) this._renderMarks()
 			log('已還原草稿', this._summary())
+		}
+
+		// 讀取並解碼一張草稿圖片；圖片遺失或壞掉時回傳 null，略過這張
+		async _decodeDraftImage(shot) {
+			try {
+				const key = `${IMAGE_KEY_PREFIX}${shot.id}`
+				const dataUrl = (await chrome.storage.local.get(key))[key]
+				if (!dataUrl) throw new Error('草稿圖片遺失')
+				return await createImageBitmap(this._dataUrlToBlob(dataUrl))
+			} catch (error) {
+				log('草稿圖片無法載入，略過', { 網址: shot.url, 錯誤: error.message })
+				return null
+			}
+		}
+
+		// 載入完成的圖片換掉清單上讀取中的卡片；右側欄收合時不必處理，展開時會重新產生
+		_showLoadedImage(shot) {
+			if (!this._isPanelOpen()) return
+			const $loading = this.$panelImages.find(`.js-image-loading[data-shot-id="${shot.id}"]`)
+			if ($loading.length) $loading.replaceWith(this._panelCard(shot, Number($loading.attr('data-index'))))
+			this._syncPanelCounts()
+			this._syncFocusUI()
 		}
 
 		// ── 輸出圖片 ──────────────────────────────────────────
@@ -2532,15 +2652,6 @@
 		}
 
 		// 顯示實際輸出的圖片，過幾秒自動消失；每次重建元素，動畫才會重新播放
-		// 畫面上方中間的提示，顯示一段時間後淡出（淡出由 CSS 動畫處理）
-		showHint() {
-			clearTimeout(this.hintTimer)
-			this.$hint?.remove()
-			this.$hint = $('<p class="screenshot_hint" role="status"></p>').text(HINT_TEXT)
-			this.$editor.append(this.$hint)
-			this.hintTimer = setTimeout(() => this.$hint?.remove(), HINT_DELAY)
-		}
-
 		_showSnapshot(canvas, text) {
 			clearTimeout(this.snapshotTimer)
 			this.$snapshot?.remove()
@@ -2552,7 +2663,7 @@
 			this.snapshotTimer = setTimeout(() => this.$snapshot?.remove(), SNAPSHOT_DELAY)
 		}
 
-		// 有提示時顯示幾秒，再回到目前模式
+		// 有提示時顯示幾秒後清空
 		// 倒數中沒有其他提示時，狀態文字顯示倒數（is_countdown 醒目顯示）
 		_setStatus(message) {
 			clearTimeout(this.statusTimer)
@@ -2565,13 +2676,9 @@
 				}
 				this.$status.find('.js-countdown-remain').text(this.countdown.remain)
 			} else {
-				this.$status.text(message || this._idleStatus())
+				this.$status.text(message || '') // 沒有提示時不顯示文字
 			}
 			if (message) this.statusTimer = setTimeout(() => this._setStatus(), 3000)
-		}
-
-		_idleStatus() {
-			return this.isCapture ? STATUS_CAPTURE : STATUS_IDLE
 		}
 
 		_timestamp() {
@@ -2583,7 +2690,9 @@
 		_dataUrlToBlob(dataUrl) {
 			const [header, base64] = dataUrl.split(',')
 			const binary = atob(base64)
-			const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
+			// 用迴圈填入：Uint8Array.from 加轉換函式會對每個字元呼叫一次函式，幾 MB 的圖要跑好幾百毫秒
+			const bytes = new Uint8Array(binary.length)
+			for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
 			return new Blob([bytes], { type: header.match(/data:(.*?);/)?.[1] || 'image/png' })
 		}
 	}
@@ -2596,14 +2705,10 @@
 
 	window.wlScreenshot = {
 		// 快捷鍵：第一次開啟直接進入截圖模式；工具列已開啟時（再按一次）切換截圖模式
-		// popup（isHint）：開啟後維持一般模式，只顯示「長按右鍵開始截圖」提示；已開啟時再提示一次
+		// popup（isIdle）：開啟後維持一般模式；已開啟時不做事
 		open(options) {
 			if (current) {
-				if (options?.isHint) {
-					current.showHint()
-				} else {
-					current.toggleCapture()
-				}
+				if (!options?.isIdle) current.toggleCapture()
 				return
 			}
 			create(options)
