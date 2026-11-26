@@ -18,3 +18,13 @@ body { background: #e2e8f0; color: #334155; }
 .help_feature-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; color: #1e293b; font-size: 15px; font-weight: 700; }
 .help_feature-badge { padding: 1px 8px; background: #e0f2fe; border-radius: 999px; color: #0369a1; font-size: 12px; font-weight: 500; }
 .help_feature-desc { margin-bottom: 0; color: #64748b; font-size: 14px; }
+
+/* ── Steps ────────────────────────────────────────────── */
+.help_steps { display: grid; grid-template-columns: max-content 1fr; gap: 10px 16px; font-size: 14px; }
+.help_steps > dt { color: #1e293b; font-weight: 700; }
+.help_steps > dd { margin-bottom: 0; color: #64748b; }
+
+@media (max-width: 575.98px) {
+  .help_steps { grid-template-columns: 1fr; gap: 2px; }
+  .help_steps > dd { margin-bottom: 8px; }
+}
