@@ -220,6 +220,7 @@
 				this._focusEditor()
 			})
 			this.$marks.on('click', '.js-draw-tool', e => this._setTool(e.currentTarget.dataset.tool))
+			this.$marks.on('click', '.js-crop-recapture', e => this._recapture($(e.currentTarget).closest('.js-shot').data('shot')))
 			this.$marks.on('click', '.js-draw-help-toggle', e => this._toggleDrawHelp(e.currentTarget))
 			this.$marks.on('input', '.js-item-text', e => this._onTextInput(e))
 			// jQuery 的 focusout 是掛在 document 上模擬的，進不了 Shadow DOM，要用原生事件
@@ -587,7 +588,8 @@
 			}
 			// 右鍵在 contextmenu 處理（_onContextMenu），按下時不做事
 			if (e.button === 2) return
-			if (e.button !== 0 || $target.closest('.js-crop-remove, .js-item-remove').length) return
+			// 刪除鈕、「截圖」按鈕交給 click 處理；不擋的話會被當成點空白處，取消顯示位置，按鈕消失就收不到 click
+			if (e.button !== 0 || $target.closest('.js-crop-remove, .js-item-remove, .js-crop-recapture').length) return
 
 			if ($target.is('.js-crop-move, .js-crop-handle')) {
 				const $shot = $target.closest('.js-shot')
@@ -1325,6 +1327,47 @@
 			log('設定截圖範圍', { 位於第幾張圖: this.shots.indexOf(shot) + 1, 範圍: rect })
 		}
 
+		// 顯示位置時框下方的「截圖」：以同一個範圍再截一張新圖，適合輪播等同位置、不同內容的畫面
+		// 新圖加在清單中原圖的後面，原圖保留不變，畫面維持顯示原圖，可以接著再按
+		async _recapture(shot) {
+			if (!shot || this.isBusy || !this._isLocating()) return
+			// 網頁捲動過就先回到原本的位置，範圍才會一樣
+			if (window.scrollX !== shot.scrollX || window.scrollY !== shot.scrollY) window.scrollTo({ left: shot.scrollX, top: shot.scrollY, behavior: 'instant' })
+
+			let source = null
+			try {
+				source = this._createScreen(await this._captureViewport())
+			} catch (error) {
+				log('同範圍截圖失敗', error)
+				this._setStatus(STATUS_CAPTURE_FAILED)
+				return
+			}
+			const next = await this._createShot(source)
+			source.bitmap.close()
+			// 視窗大小可能變過，用原本的像素範圍換算，並限制在目前視窗內
+			const { left, top, right, bottom } = this._cropRect(shot)
+			const x = Math.min(left, next.viewportWidth - MIN_SHOT_SIZE)
+			const y = Math.min(top, next.viewportHeight - MIN_SHOT_SIZE)
+			next.crop = {
+				x: Math.max(0, x) / next.viewportWidth,
+				y: Math.max(0, y) / next.viewportHeight,
+				w: Math.min(right - left, next.viewportWidth - Math.max(0, x)) / next.viewportWidth,
+				h: Math.min(bottom - top, next.viewportHeight - Math.max(0, y)) / next.viewportHeight,
+			}
+			// 排在原圖和之前同範圍新增的圖後面，依按下的順序排列
+			const group = this.shots.filter(item => item === shot || item.recaptureOf === shot.id)
+			await this._commitShot(next, { after: group[group.length - 1] })
+			next.recaptureOf = shot.id
+			next.z = this.nextZ++
+			this.panelTab = 'block'
+			this._renderMarks()
+			this._syncPanel()
+			this.$panelImages.children(`[data-shot-id="${next.id}"]`)[0]?.scrollIntoView({ block: 'nearest' })
+			this._saveDraft()
+			this._showSnapshot(this._renderShot(next), `已加入第 ${this._shotNumber(next)} 張截圖`)
+			log('同範圍截圖', { 原圖: this._shotNumber(shot), 新圖: this._shotNumber(next) })
+		}
+
 		// ── 畫圖 ──────────────────────────────────────────
 		_setTool(tool) {
 			this.activeTool = tool
@@ -1875,6 +1918,7 @@
 					${SHOT_TOOLS}
 					${DRAW_TOOLS}
 					<span class="_handle js-crop-handle" title="拖曳調整大小"></span>
+					<button class="_recapture js-crop-recapture" type="button" title="以相同範圍再截一張">截圖</button>
 				</div>
 			`)
 			$crop.css(this._boxStyle(shot.crop))

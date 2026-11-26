@@ -82,6 +82,12 @@
 .screenshot_editor.is_locate .screenshot_ink,
 .screenshot_editor.is_locate .screenshot_item { display: none; }
 
+/* 顯示位置時框下方的「截圖」：以相同範圍再截一張；下方放不下時改放框內（is_draw_inside 由 JS 判斷） */
+.screenshot_crop > ._recapture { display: none; }
+.screenshot_editor.is_locate .screenshot_shot.is_focus > .screenshot_crop > ._recapture { position: absolute; top: 100%; left: -2px; display: flex; align-items: center; margin-top: 6px; padding: 6px 14px; background: var(--primary); border: 0; border-radius: 4px; box-shadow: var(--edge); color: #fff; font: inherit; font-size: 13px; font-weight: 700; line-height: 1; white-space: nowrap; cursor: pointer; pointer-events: auto; }
+.screenshot_editor.is_locate .screenshot_shot.is_focus > .screenshot_crop > ._recapture:hover { background: #0b5ed7; }
+.screenshot_editor.is_locate .screenshot_shot.is_focus > .screenshot_crop.is_draw_inside > ._recapture { top: auto; bottom: 4px; left: 4px; margin-top: 0; }
+
 /* 沒有 focus 的藍框是半透明實線，focus 中的是虛線；只改框線，控制點維持不透明 */
 .screenshot_crop { position: absolute; border: 2px solid rgba(13, 110, 253, .5); }
 .screenshot_shot.is_focus > .screenshot_crop { border: 2px dashed var(--primary); }
