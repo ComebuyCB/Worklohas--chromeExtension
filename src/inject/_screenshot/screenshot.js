@@ -8,13 +8,14 @@
 	const MIN_LINE_LENGTH = 4 // 直線短於此 px 視為誤觸
 	const SAVE_DELAY = 300 // 打字時延遲儲存的毫秒數
 	const SYNC_DELAY = 500 // 畫圖或調整藍框後，延遲更新右側欄圖片的毫秒數，避免太常重繪
-	const DOUBLE_CLICK_DELAY = 300 // 空白處左鍵連按兩下的間隔
-	const LONG_PRESS_DELAY = 300 // 一般模式按住右鍵多久進入截圖模式
+	const DOUBLE_CLICK_DELAY = 300 // 空白處中鍵連按兩下的間隔
+	const LONG_PRESS_DELAY = 300 // 按住多久算長按：右鍵一般模式進入截圖模式，截圖模式離開，放大中關閉放大；中鍵截圖模式截整頁
 	const LONG_PRESS_TOLERANCE = 6 // 按住右鍵時滑鼠移動超過此 px 就不算長按（可能是滑鼠手勢）
 	const SCROLL_KEYS = [' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'] // 截圖模式不讓這些按鍵捲動網頁
 	const HELP_GAP = 8 // 操作說明和工具列的距離，要等於 CSS
 	const SNAPSHOT_DELAY = 2500 // 複製或下載圖片後，快照提示顯示的毫秒數
 	const PANEL_WIDTH = 400 // 右側欄預設寬度
+	const TOOLBAR_MARGIN = 4 // 工具列預設離視窗右上角的距離，要等於 CSS .screenshot_toolbar 的 top、right
 	const PANEL_MIN_WIDTH = 280 // 拖曳左邊界調整寬度的下限
 	const PANEL_MAX_WIDTH = 900 // 上限；另外至少留 PANEL_PAGE_GAP 給網頁
 	const PANEL_PAGE_GAP = 80
@@ -22,11 +23,31 @@
 	const TOOLS_WIDTH = 32 // 複製、下載按鈕的寬度；框靠近視窗右緣時改放框內
 	const REMOVE_OFFSET = 13 // 刪除鈕超出框線的距離；框貼齊視窗邊緣時改放框內
 	const CONTROL_MARGIN = 9 // 畫的內容貼齊視窗邊緣時，控制點離邊緣的距離，才按得到
-	const DRAW_BAR_WIDTH = 240 // 畫圖工具列的寬高，框下方或右方放不下時調整位置，要等於 CSS（6 顆 32px 按鈕 + 48px 粗細）
+	const DRAW_BAR_WIDTH = 272 // 畫圖工具列的寬高，框下方或右方放不下時調整位置，要等於 CSS（7 顆 32px 按鈕 + 48px 粗細）
 	const DRAW_BAR_HEIGHT = 38
-	const COLOR_MARK = '#e11d2e'
+	const COLOR_MARK = '#e11d2e' // 預設的畫筆顏色（紅），也是舊草稿沒有記顏色的內容
+	// 畫筆顏色：畫圖工具列的下拉選單，排成 4 欄 × 3 列，每欄一個色系、由上到下淺到深（CSS 直向排）
+	// 都用飽和度高的鮮明色；藍、靛藍的色相往藍靠，不偏紫。同一色系相鄰兩色的色差（ΔE2000）差不多，不會一段很近、一段很遠；最上面一列（最淺）偏亮，畫在黑暗模式的網站上才看得清楚
+	const DRAW_COLORS = [
+		{ name: '黃', value: '#ffe600' },
+		{ name: '橘', value: '#ff8a00' },
+		{ name: '紅', value: COLOR_MARK },
+		{ name: '淺藍', value: '#66d4ff' },
+		{ name: '藍', value: '#2b8aff' },
+		{ name: '靛藍', value: '#2a3fd6' },
+		{ name: '亮綠', value: '#c0ff40' },
+		{ name: '綠', value: '#1fd15c' },
+		{ name: '深綠', value: '#11843a' },
+		{ name: '白', value: '#ffffff' },
+		{ name: '灰', value: '#888888' },
+		{ name: '黑', value: '#000000' },
+	]
 	const COLOR_DIM = 'rgba(15, 23, 42, .45)' // 截圖模式、放大時凍結底圖上的半透明黑底
-	const GALLERY_SCROLL_STEP = 80 // 放大整頁截圖時，方向鍵每次捲動的距離
+	const COLOR_DIM_LIGHT = 'rgba(255, 255, 255, .3)' // 底圖偏暗（網站是黑暗模式）時改用白霧，黑底疊在深色上看不出範圍
+	const DARK_SAMPLE_SIZE = 32 // 判斷底圖深淺時縮小到幾 px 見方取樣；縮小時瀏覽器會平均像素，文字等細節會被抹平
+	const DARK_LUMINANCE = 90 // 亮度（0–255）低於此值算暗像素；調高時偏灰的網站也會被當成深色
+	const DARK_RATIO = 0.6 // 暗像素超過此比例就視為深色底圖；調低時較容易切到白霧
+	const GALLERY_SCROLL_STEP = 80 // 放大時圖比畫面高（整頁截圖，或在較高的視窗截的區塊），方向鍵每次捲動的距離
 	const LINE_WIDTH = 3 // 線條預設粗細
 	const MIN_LINE_WIDTH = 1
 	const MAX_LINE_WIDTH = 20
@@ -51,6 +72,7 @@
 	const DRAFT_KEY = 'wl_report_draft'
 	const IMAGE_KEY_PREFIX = 'wl_report_image_'
 	const GOTO_KEY = 'wl_report_goto' // 按「前往」時記下要顯示位置的圖，換頁接回後捲到該位置
+	const COLOR_KEY = 'wl_report_color' // 上次選的畫筆顏色；和草稿分開存，清空草稿、重新開啟後仍沿用
 	const GOTO_EXPIRE = 60 * 1000 // 超過此毫秒數才接回就不處理（換頁失敗或使用者改去別頁）
 
 	// 網站沒有載入 icon 字型，Shadow DOM 內直接用 SVG
@@ -71,6 +93,19 @@
 	const ICON_COLS_1 = `<svg ${SVG_ATTRS}><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`
 	const ICON_COLS_2 = `<svg ${SVG_ATTRS}><rect x="3" y="6" width="8" height="12" rx="1.5"/><rect x="13" y="6" width="8" height="12" rx="1.5"/></svg>`
 	const ICON_HELP = `<svg ${SVG_ATTRS}><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`
+	// 操作說明的滑鼠圖示：外框＋左右鍵分隔線，按的那顆鍵塗上主色；滾輪另外在右側加上下箭頭表示滾動
+	const MOUSE_PARTS = {
+		left: '<path class="_on" d="M10 3a6 6 0 0 0-6 6v1h6z"/>',
+		right: '<path class="_on" d="M10 3a6 6 0 0 1 6 6v1h-6z"/>',
+		middle: '<rect class="_on" x="9" y="5.5" width="2" height="4" rx="1"/>',
+		wheel: '<rect class="_on" x="9" y="5.5" width="2" height="4" rx="1"/><path d="M20.5 7v10M18.5 9l2-2 2 2M18.5 15l2 2 2-2"/>',
+	}
+	const MOUSE_NAMES = { left: '左鍵', right: '右鍵', middle: '中鍵', wheel: '滾輪' }
+	// action：雙擊、長按等附加在圖示後面的文字；沒有時也保留空的標籤位置，各列的滑鼠圖示才會對齊
+	const mouseKey = (button, action = '') => `<span class="screenshot_mouseKey" title="${MOUSE_NAMES[button]}${action}"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="12" height="18" rx="6"/><path d="M10 3v7M4 10h12"/>${MOUSE_PARTS[button]}</svg><span class="_label">${MOUSE_NAMES[button]}</span><span class="_action">${action}</span></span>`
+	// 操作說明的鍵盤按鍵：用 <kbd> 畫成鍵帽；組合鍵（Ctrl+Z、快捷鍵）依 + 拆成多顆
+	const keyCap = key => `<kbd class="screenshot_kbd">${key}</kbd>`
+	const keyCombo = combo => combo.split('+').map(keyCap).join('+')
 	const DRAW_TOOLS = `
 		<span class="screenshot_draw">
 			<button class="_tool js-draw-tool" type="button" data-tool="pen" title="自由劃線" aria-label="自由劃線">${ICON_PEN}</button>
@@ -78,6 +113,12 @@
 			<button class="_tool js-draw-tool" type="button" data-tool="arrow" title="箭頭" aria-label="箭頭">${ICON_ARROW}</button>
 			<button class="_tool js-draw-tool" type="button" data-tool="rect" title="方框" aria-label="方框">${ICON_RECT}</button>
 			<button class="_tool js-draw-tool" type="button" data-tool="text" title="文字" aria-label="文字">${ICON_TEXT}</button>
+			<span class="_color">
+				<button class="_tool js-draw-color" type="button" title="顏色" aria-label="顏色" aria-haspopup="listbox" aria-expanded="false"><span class="_swatch js-draw-color-swatch"></span></button>
+				<span class="screenshot_colorMenu js-draw-color-menu" role="listbox" aria-label="顏色" hidden>
+					${DRAW_COLORS.map(({ name, value }) => `<button class="_option js-draw-color-option" type="button" role="option" data-color="${value}" title="${name}" aria-label="${name}" aria-selected="false" style="--swatch: ${value}"></button>`).join('')}
+				</span>
+			</span>
 			<span class="_size js-draw-size" title="滾輪調整"></span>
 			<button class="_tool js-draw-help-toggle" type="button" title="編輯說明" aria-label="編輯說明" aria-expanded="false">${ICON_HELP}</button>
 		</span>
@@ -111,16 +152,20 @@
 			this.shots = [] // 每個頁面、捲動位置一張圖：{ id, bitmap, url, scale, scrollX, scrollY, crop, items: [] ... }
 			this.screen = null // 截圖模式的凍結畫面：進入時截一次，這次框的藍框都從這張圖裁切；離開時清空
 			this.backdropSource = null // 目前畫在底圖上的是哪一張（凍結畫面或放大中的圖），相同就不重畫
+			this.isDarkBackdrop = false // 底圖是否偏暗：換底圖時算一次，遮罩依此選黑底或白霧
 			this.focusedShot = null // focus 中的藍框所屬的圖：左鍵只在這個藍框內畫圖
 			this.galleryIndex = 0 // 放大瀏覽中的第幾張
 			this.frozenShot = null // 放大中的圖：用它的截圖當底圖，同一張截圖上的藍框都一起顯示
 			this.isGalleryFromIdle = false // 從一般模式放大的，關閉時要回到一般模式
-			this.galleryScrollY = 0 // 放大整頁截圖時往下捲的距離（圖比畫面高）
+			this.galleryScrollY = 0 // 放大時往下捲的距離：整頁截圖，或區塊截圖的底圖比目前畫面高（例如在 F11 全螢幕截的）
+			this.galleryScrollX = 0 // 放大時往右捲的距離：底圖比目前畫面寬時
 			this.panelTab = 'block' // 截圖清單目前的分頁：block 區塊、page 整頁
 			this.lineWidth = LINE_WIDTH // 下一筆線條的粗細
-			this.panelWidth = PANEL_WIDTH // 右側欄寬度，拖曳左邊界調整
+			this.panelWidth = PANEL_WIDTH // 右側欄寬度，拖曳左右邊界調整
+			this.panelLeft = null // 右側欄拖曳後的左邊位置（px）；null 表示貼齊視窗右側
 			this.panelCols = 2 // 截圖清單一排幾張：1 是一排一張（16:9），2 是一排多張（1:1，CSS 依寬度增加欄數）
 			this.textSize = TEXT_SIZE // 下一個文字框的字級
+			this.color = COLOR_MARK // 下一筆的顏色；讀草稿時換成上次選的顏色
 			this.wheelDelta = 0 // 累積的滾動量
 			this.activeTool = 'line' // 目前的畫圖工具：pen、line、arrow、rect、text；預設直線
 			this.isCapture = false // 截圖模式才能框選；一般模式網頁可正常操作
@@ -136,11 +181,12 @@
 			this.selectedItem = null // 選取中的直線或方框：滾輪立刻改它的粗細
 			this.isRendering = false // 重繪移除文字框時會觸發失焦，這時不處理
 			this.inks = new Map() // 每張圖在畫面上的畫布
-			this.lastBlankClick = 0 // 上次在空白處左鍵單擊的時間，用來判斷雙擊
-			this.lastMiddleClick = 0 // 上次在空白處中鍵單擊的時間，雙擊截整頁
+			this.lastMiddleClick = 0 // 上次在空白處中鍵單擊的時間，雙擊框起整個畫面
+			this.middlePress = null // 空白處按住中鍵的計時器，時間到就截整頁；放開時還在表示是短按
 			this.scrollLock = null // 截圖模式鎖住的捲動位置：{ x, y }
 			this.toolbarDrag = null // 拖曳工具列時，游標與工具列左上角的距離
-			this.toolbarPos = null // 展開右側欄前拖曳到的位置 { left, top }，收合時放回去；沒拖曳過是 null
+			this.toolbarPos = null // 展開右側欄前拖曳到的位置 { left, top }，收合時沿用高度；沒拖曳過是 null
+			this.resumeToolbarPos = null // 換頁接回且右側欄要展開時，草稿裡的工具列位置，展開後放進 toolbarPos
 			this.lastPointer = null
 			this.isBusy = true // 截圖時不接受框選
 			this.draftLoading = null // 載入草稿圖片中的 Promise；儲存草稿要等它完成
@@ -174,7 +220,12 @@
 			} else {
 				await this.toggleCapture()
 			}
-			if (this.shouldOpenPanel) this._openPanel()
+			if (this.shouldOpenPanel) {
+				this._openPanel()
+				// 換頁前右側欄是展開的：工具列在右側欄裡，草稿記下的工具列位置留給收合時用
+				if (this.resumeToolbarPos) this.toolbarPos = this.resumeToolbarPos
+			}
+			this.resumeToolbarPos = null
 			this.draftLoading = this._loadDraftImages(draft)
 			await this.draftLoading
 			this.draftLoading = null
@@ -220,6 +271,10 @@
 				this._focusEditor()
 			})
 			this.$marks.on('click', '.js-draw-tool', e => this._setTool(e.currentTarget.dataset.tool))
+			this.$marks.on('click', '.js-draw-color', e => this._toggleColorMenu(e.currentTarget))
+			this.$marks.on('click', '.js-draw-color-option', e => this._setColor($(e.currentTarget).closest('.js-shot').data('shot'), e.currentTarget.dataset.color))
+			// 按顏色時不搶走焦點：打字中的文字框才不會先結束編輯，選的顏色才改得到它
+			this.$marks.on('mousedown', '.js-draw-color, .js-draw-color-option', e => e.preventDefault())
 			this.$marks.on('click', '.js-crop-recapture', e => this._recapture($(e.currentTarget).closest('.js-shot').data('shot')))
 			this.$marks.on('click', '.js-draw-help-toggle', e => this._toggleDrawHelp(e.currentTarget))
 			this.$marks.on('input', '.js-item-text', e => this._onTextInput(e))
@@ -235,7 +290,7 @@
 			this.$editor.on('click', '.js-gallery-help-toggle', () => this._toggleGalleryHelp())
 			// 按說明以外的地方就收起來
 			this.$editor.on('pointerdown', e => {
-				if (!$(e.target).closest('.js-help, .js-help-toggle, .js-gallery-help, .js-gallery-help-toggle, .js-draw-help, .js-draw-help-toggle').length) this._closeHelp()
+				if (!$(e.target).closest('.js-help, .js-help-toggle, .js-gallery-help, .js-gallery-help-toggle, .js-draw-help, .js-draw-help-toggle, .js-draw-color, .js-draw-color-menu').length) this._closeHelp()
 			})
 			this.$editor.on('click', '.js-capture-toggle', () => this.toggleCapture())
 			this.$editor.on('click', '.js-image-zoom', e => this._openGallery(this._shotOfTool(e)))
@@ -282,6 +337,7 @@
 			window.removeEventListener('pointerup', this._cancelLongPress, true)
 			window.removeEventListener('blur', this._cancelLongPress)
 			this._cancelLongPress()
+			this._cancelMiddlePress()
 			chrome.storage.onChanged.removeListener(this._onStorageChanged)
 			if (isTakenOver) {
 				clearTimeout(this.saveTimer)
@@ -384,24 +440,24 @@
 				{
 					name: '通用',
 					rows: [
-						...(this.shortcut ? [[this.shortcut, '切換一般/截圖模式']] : []),
+						[mouseKey('right', '長按'), '進入/離開截圖模式'],
+						...(this.shortcut ? [[keyCombo(this.shortcut), '進入/離開截圖模式']] : []),
 					],
 				},
 				{
 					name: '一般模式',
 					rows: [
-						['右鍵長按', '進入截圖模式'],
-						['0~9', '倒數後進入截圖模式'],
-						['Esc', '取消倒數'],
+						[`${keyCap('0')}~${keyCap('9')}`, '延遲進入截圖模式'],
+						[keyCap('Esc'), '取消延遲倒數'],
 					],
 				},
 				{
 					name: '截圖模式',
 					rows: [
-						['左鍵', `框起截圖`],
-						['左鍵雙擊', '框起整個畫面'],
-						['中鍵雙擊', '截取整個網頁 (含捲動範圍)'],
-						['右鍵', '取消編輯 / 離開截圖模式'],
+						[mouseKey('left'), '截取畫面'],
+						[mouseKey('middle', '雙擊'), '截取整個畫面'],
+						[mouseKey('middle', '長按'), '截取整個網頁 (整頁)'],
+						[mouseKey('right'), '取消選取'],
 					],
 				},
 			]
@@ -413,9 +469,9 @@
 				{
 					name: '編輯截圖',
 					rows: [
-						['滾輪', '調整線條粗細或文字大小'],
-						['Ctrl+Z', '復原'],
-						['Ctrl+Y', '重做'],
+						[mouseKey('wheel'), '調整線條粗細或文字大小'],
+						[keyCombo('Ctrl+Z'), '復原'],
+						[keyCombo('Ctrl+Y'), '重做'],
 					],
 				},
 			]
@@ -427,24 +483,33 @@
 				{
 					name: '畫廊編輯',
 					rows: [
-						['← →', '切換上一張、下一張'],
-						['左鍵', '選取編輯 / 框起截圖'],
-						['左鍵雙擊', '空白處整張截圖'],
-						['右鍵', '取消編輯 / 離開畫廊'],
+						[keyCap('←') + keyCap('→'), '上一張、下一張'],
+						[mouseKey('wheel'), '上下 / 左右捲動'],
+						[mouseKey('middle', '雙擊'), '截取整個畫面 (空白處)'],
+						[mouseKey('right'), '取消選取 / 隱藏UI'],
+						[mouseKey('right', '長按'), '離開畫廊'],
 					],
 				},
 			]
 		}
 
-		// 內容都是程式內的固定文字和 chrome.commands 的快捷鍵，不含使用者輸入
-		_helpTable(groups) {
-			const body = groups.map(({ name, rows }) => `
-				<tbody>
-					<tr><th class="_group" colspan="2" scope="colgroup">${name}</th></tr>
-					${rows.map(([key, desc]) => `<tr><th scope="row">${key}</th><td>${desc}</td></tr>`).join('')}
-				</tbody>
+		// 說明小視窗的內容：深色標題列＋各組按鍵清單；內容都是程式內的固定文字和 chrome.commands 的快捷鍵，不含使用者輸入
+		// 每列各自排版（不是表格）：說明在左、按鍵在右靠齊，按鍵多的列不會影響其他列
+		// 沒有內容的組不顯示（例如沒設定快捷鍵時的「通用」）；只有一組時標題列已說明，不再顯示組標題
+		_helpContent(title, groups) {
+			const filled = groups.filter(({ rows }) => rows.length)
+			const body = filled.map(({ name, rows }) => `
+				<section class="screenshot_helpGroup">
+					${filled.length > 1 ? `<h3 class="_title">${name}</h3>` : ''}
+					<dl class="screenshot_helpList">
+						${rows.map(([key, desc]) => `<div class="screenshot_helpRow"><dt class="screenshot_helpKey">${key}</dt><dd class="_desc">${desc}</dd></div>`).join('')}
+					</dl>
+				</section>
 			`).join('')
-			return `<table class="screenshot_helpTable">${body}</table>`
+			return `
+				<div class="screenshot_help--head">${ICON_HELP}<span class="_title">${title}</span></div>
+				<div class="screenshot_help--body">${body}</div>
+			`
 		}
 
 		// jQuery 的 trigger('focus') 無法把焦點移到 Shadow DOM 內的容器，需用原生 focus；一般模式不搶走網頁的焦點
@@ -474,8 +539,9 @@
 					<button class="screenshot_panel_edge js-panel-edge js-panel-toggle" type="button" aria-label="展開截圖清單"><span class="_hint">← 點一下展開截圖清單</span></button>
 					<!-- 展開時工具列會移進來，放在最上方當標題列 -->
 					<aside class="screenshot_panel js-panel" aria-label="截圖清單" hidden>
-						<!-- 左邊界：按住拖曳調整寬度 -->
-						<div class="screenshot_panel_resize js-panel-resize" role="separator" aria-orientation="vertical" aria-label="拖曳調整截圖清單寬度" title="拖曳調整寬度"></div>
+						<!-- 左右邊界：按住拖曳調整寬度 -->
+						<div class="screenshot_panel_resize js-panel-resize" data-edge="left" role="separator" aria-orientation="vertical" aria-label="拖曳左邊界調整截圖清單寬度" title="拖曳調整寬度"></div>
+						<div class="screenshot_panel_resize js-panel-resize" data-edge="right" role="separator" aria-orientation="vertical" aria-label="拖曳右邊界調整截圖清單寬度" title="拖曳調整寬度"></div>
 						<div class="screenshot_panel--head">
 							<h2 class="screenshot_panel_title">截圖清單<span class="_count js-panel-title-count"></span></h2>
 							<button class="screenshot_link is_danger js-panel-clear" type="button">全部移除</button>
@@ -506,7 +572,7 @@
 							<span class="screenshot_status js-status" role="status"></span>
 							<button class="screenshot_iconBtn js-panel-toggle" type="button" title="截圖清單" aria-label="截圖清單" aria-expanded="false">${ICON_PANEL}<span class="_count js-panel-count"></span></button>
 						</div>
-						<div class="screenshot_help js-help" role="note" hidden>${this._helpTable(this._mainHelp())}</div>
+						<div class="screenshot_help js-help" role="note" hidden>${this._helpContent('操作說明', this._mainHelp())}</div>
 					</div>
 					<div class="screenshot_dialog js-dialog" role="dialog" aria-label="圖片不在目前頁面" hidden>
 						<p class="_text">這張圖不在目前頁面，是否前往？</p>
@@ -524,11 +590,11 @@
 						<div class="_actions">
 							<button class="_tool _help js-gallery-help-toggle" type="button" title="操作說明" aria-label="操作說明" aria-expanded="false">${ICON_HELP}</button>
 							<button class="_tool js-gallery-close" type="button" title="關閉 (Esc)" aria-label="關閉">×</button>
-							<div class="screenshot_help js-gallery-help" role="note" hidden>${this._helpTable(this._galleryHelp())}</div>
+							<div class="screenshot_help js-gallery-help" role="note" hidden>${this._helpContent('畫廊編輯', this._galleryHelp())}</div>
 						</div>
 					</div>
 					<!-- 畫圖工具列 (?) 的說明：工具列會隨重繪重建，說明放在外層，位置由 JS 依按鈕算出 -->
-					<div class="screenshot_help screenshot_drawHelp js-draw-help" role="note" hidden>${this._helpTable(this._drawHelp())}</div>
+					<div class="screenshot_help screenshot_drawHelp js-draw-help" role="note" hidden>${this._helpContent('編輯截圖', this._drawHelp())}</div>
 				</div>
 			`)
 			this.$stage = this.$editor.find('.js-stage')
@@ -571,6 +637,8 @@
 
 		_onPointerDown(e) {
 			if (this.isBusy) return
+			// 右鍵隱藏的放大工具列，按左鍵（開始編輯、框選等）後就不再強制隱藏，回到原本的顯示時機（選取編輯、畫圖時仍會淡出）
+			if (e.button === 0) this.$editor.removeClass('is_gallery_hidden')
 
 			const $target = $(e.target)
 			// 按工具列不影響 focus，也不開始框選
@@ -580,10 +648,16 @@
 				return
 			}
 
-			// 截圖模式（非放大）在空白處雙擊中鍵：整頁截圖
+			// 空白處按中鍵：截圖模式長按截整頁，短按在放開時判斷雙擊（_onBlankMiddleClick）
+			// 放大中沒有整頁截圖，按下就判斷雙擊
 			if (e.button === 1) {
 				e.preventDefault()
-				if (!this.frozenShot && !this._shotsAt(e).length) this._onBlankMiddleClick()
+				if (this._shotsAt(e).length) return
+				if (this.frozenShot) {
+					this._onBlankMiddleClick()
+				} else {
+					this._startMiddlePress()
+				}
 				return
 			}
 			// 右鍵在 contextmenu 處理（_onContextMenu），按下時不做事
@@ -691,7 +765,7 @@
 			if (!isOn) return
 
 			const size = this.drawing?.item?.width ?? this.lineWidth
-			this.$brush.css({ left: point.clientX, top: point.clientY, width: size, height: size })
+			this.$brush.css({ left: point.clientX, top: point.clientY, width: size, height: size, background: this.drawing?.item?.color ?? this.color })
 		}
 
 		_hideBrush() {
@@ -700,6 +774,12 @@
 		}
 
 		async _onPointerUp(e) {
+			// 中鍵放開時長按還沒觸發：算短按，判斷雙擊；pointercancel 只取消
+			if (e.button === 1 && this.middlePress) {
+				this._cancelMiddlePress()
+				if (e.type === 'pointerup') this._onBlankMiddleClick()
+				return
+			}
 			if (this.drawing) {
 				this._finishDrawing(e.type === 'pointerup')
 				return
@@ -734,34 +814,46 @@
 			this._paintDim() // 框選範圍的挖空收回；框成藍框的話，重繪時會再挖空
 
 			if (e.type !== 'pointerup') return
-			if (rect.width < MIN_BOX_SIZE || rect.height < MIN_BOX_SIZE) {
-				this._onBlankClick()
-				return
-			}
-			// 範圍太小不截圖，也不顯示提示
+			// 只點一下（沒拖出範圍）或範圍太小都不截圖，也不顯示提示；單擊只取消 focus：藍框是整張圖的畫板，不能一滑手就連畫的內容一起消失
 			if (rect.width < MIN_SHOT_SIZE || rect.height < MIN_SHOT_SIZE) return
 			await this._setCrop(rect)
 		}
 
-		// 按住標題列拖曳；位置只留在這個頁面，換頁後回到預設。移進右側欄時固定不動
+		// 按住標題列拖曳；工具列移進右側欄時，改成拖曳整個右側欄，只能左右移動（右側欄一律滿高）
+		// 位置存進草稿，同一分頁換頁接回時沿用；結束後重新開啟時回到預設的右側
 		_onToolbarDown(e) {
-			if (this._isPanelOpen()) return
 			if (e.button !== 0 || $(e.target).closest('button').length) return
 
 			e.preventDefault()
 			e.currentTarget.setPointerCapture(e.pointerId)
-			const { left, top } = this.$toolbar[0].getBoundingClientRect()
-			this.toolbarDrag = { x: e.clientX - left, y: e.clientY - top }
+			const isPanel = this._isPanelOpen()
+			const { left, top } = (isPanel ? this.$panel : this.$toolbar)[0].getBoundingClientRect()
+			this.toolbarDrag = { x: e.clientX - left, y: e.clientY - top, isPanel }
+			if (isPanel) {
+				this.$editor.addClass('is_panel_dragging')
+				return
+			}
 			this.$toolbar.addClass('is_moved')
 			this._placeToolbar(left, top)
 		}
 
 		_onToolbarMove(e) {
-			if (this.toolbarDrag) this._placeToolbar(e.clientX - this.toolbarDrag.x, e.clientY - this.toolbarDrag.y)
+			if (!this.toolbarDrag) return
+			if (this.toolbarDrag.isPanel) {
+				this._setPanelLeft(e.clientX - this.toolbarDrag.x)
+			} else {
+				this._placeToolbar(e.clientX - this.toolbarDrag.x, e.clientY - this.toolbarDrag.y)
+			}
 		}
 
 		_onToolbarUp() {
+			if (!this.toolbarDrag) return
+			if (this.toolbarDrag.isPanel) {
+				this.$editor.removeClass('is_panel_dragging')
+				log('移動截圖清單', { 左邊位置: this.panelLeft ?? '貼齊右側' })
+			}
 			this.toolbarDrag = null
+			this._saveDraft()
 		}
 
 		_toggleHelp() {
@@ -830,6 +922,8 @@
 			this.$galleryHelpToggle.attr('aria-expanded', 'false')
 			this.$drawHelp.prop('hidden', true)
 			this.$marks.find('.js-draw-help-toggle').attr('aria-expanded', 'false')
+			this.$marks.find('.js-draw-color-menu').prop('hidden', true)
+			this.$marks.find('.js-draw-color').attr('aria-expanded', 'false')
 		}
 
 		// 不能拖出視窗，否則按不到工具列
@@ -844,43 +938,48 @@
 
 		_onResize = () => {
 			if (this.$toolbar.hasClass('is_moved')) this._placeToolbar(this.$toolbar[0].offsetLeft, this.$toolbar[0].offsetTop)
+			// 視窗變窄時，拖曳過的右側欄拉回視窗內
+			if (this.panelLeft !== null) this._setPanelLeft(this.panelLeft)
 			this._paintDim()
 		}
 
-		// 空白處左鍵雙擊截全螢幕。單擊只取消 focus：藍框是整張圖的畫板，不能一滑手就連畫的內容一起消失
-		_onBlankClick() {
-			const now = Date.now()
-			if (now - this.lastBlankClick <= DOUBLE_CLICK_DELAY) {
-				this.lastBlankClick = 0
-				this._captureFull()
-				return
-			}
-			this.lastBlankClick = now
-		}
-
-		// 右鍵：有選取藍框時取消選取；沒有選取時，放大中關閉放大，截圖模式時離開截圖模式（長按右鍵再進來）；畫圖、拖曳到一半時不處理
-		// 在 contextmenu 才處理並擋掉：若在按下時就離開，舞台不再接收滑鼠，放開時的右鍵選單會落到網頁上，觸發網站自己的右鍵效果
+		// 右鍵（短按）：有選取藍框時取消選取；沒有選取時，放大中隱藏放大的工具列（頁數、上下頁、右上按鈕），方便看整張圖；按左鍵後恢復
+		// 離開截圖模式、關閉放大改為長按右鍵（_onLongPress），短按不會不小心離開
+		// 長按觸發後放開時的這一次 contextmenu，已在 _onPageContextMenu 擋掉，不會走到這裡
 		_onContextMenu(e) {
 			// 也不冒泡到網頁：網站的自訂右鍵選單常掛在 document 上
 			e.preventDefault()
 			e.stopPropagation()
 			if (this.isBusy || this.drawing || this.adjusting || this.moving || this.dragStart) return
-			// 分兩段：有選取藍框時（不論點在框內或空白處）先取消選取；沒有選取時，放大中關閉放大、截圖模式回到一般模式
 			if (this.focusedShot) {
 				this._clearFocus()
 			} else if (this.frozenShot) {
-				this._closeGallery()
-			} else if (this.isCapture) {
-				this.toggleCapture()
+				this._closeHelp()
+				this.$editor.addClass('is_gallery_hidden')
 			}
 		}
 
-		// 空白處中鍵雙擊：整頁截圖
+		// 截圖模式空白處按住中鍵：計時，時間到就整頁截圖；放開前觸發的話，放開時不再算短按
+		_startMiddlePress() {
+			this._cancelMiddlePress()
+			this.middlePress = setTimeout(() => {
+				this.middlePress = null
+				this.lastMiddleClick = 0
+				this._captureFullPage()
+			}, LONG_PRESS_DELAY)
+		}
+
+		_cancelMiddlePress() {
+			clearTimeout(this.middlePress)
+			this.middlePress = null
+		}
+
+		// 空白處中鍵雙擊（短按兩下）：框起整個畫面；放大中是畫面上看得到的範圍
 		_onBlankMiddleClick() {
 			const now = Date.now()
 			if (now - this.lastMiddleClick <= DOUBLE_CLICK_DELAY) {
 				this.lastMiddleClick = 0
-				this._captureFullPage()
+				this._captureFull()
 				return
 			}
 			this.lastMiddleClick = now
@@ -928,21 +1027,33 @@
 			}
 			await this._commitShot(shot)
 			this.panelTab = 'page'
-			this._syncPanel()
-			this._syncPanelToggle()
 			this._saveDraft()
 			const index = this._shotNumber(shot)
 			this._showSnapshot(this._renderShot(shot), `已加入整頁截圖（第 ${index} 張）`)
 			log('整頁截圖', { 第幾張: index, 網頁尺寸: `${result.width} × ${result.height}`, 圖片尺寸: `${bitmap.width} × ${bitmap.height}` })
+
+			// 截完離開截圖模式，展開截圖清單的整頁分頁，選取新的卡片並捲進可見範圍（和「前往」接回時相同）
+			if (this.isCapture) await this.toggleCapture()
+			if (!this._isPanelOpen()) this._openPanel()
+			this._syncPanel()
+			this._syncPanelToggle()
+			this.$panelImages.children(`[data-shot-id="${shot.id}"]`)[0]?.scrollIntoView({ block: 'nearest' })
+			this._focusShot(shot)
 		}
 
 		// 截圖模式一律不捲動網頁；focus 藍框時滾輪調粗細或字級
 		_onWheel = e => {
 			e.preventDefault()
 			const unit = e.deltaMode === 1 ? 16 : 1 // deltaMode 1 表示以行為單位
-			// 放大整頁截圖：瀏覽（沒有選取）時滾輪捲動圖片；選取編輯時和區塊一樣調粗細
-			if (this.frozenShot?.isFullPage && !this.focusedShot) {
-				this._scrollGallery(e.deltaY * unit)
+			// 放大時：瀏覽（沒有選取）時滾輪捲動圖片；圖比畫面高時上下捲，只有寬不夠時滾輪改成左右捲（觸控板的左右滑動一律左右捲）；選取編輯時調粗細
+			if (this.frozenShot && !this.focusedShot) {
+				const dx = e.deltaX * unit
+				const dy = e.deltaY * unit
+				if (this._isGalleryTall()) {
+					this._scrollGallery(dx, dy)
+				} else {
+					this._scrollGallery(dx + dy, 0)
+				}
 				return
 			}
 			if (this._visibleShots().includes(this.focusedShot)) this._onSizeWheel(e, e.deltaY * unit)
@@ -1115,8 +1226,8 @@
 				// 選取藍框編輯時隱藏了上下頁，← → 也不換頁
 				if (this.focusedShot) return
 				this._moveGallery(step)
-			} else if (scroll && this.frozenShot.isFullPage) {
-				this._scrollGallery(scroll)
+			} else if (scroll) {
+				this._scrollGallery(0, scroll)
 			} else {
 				return
 			}
@@ -1152,11 +1263,16 @@
 			this._clearFocus()
 		}
 
-		// 一般模式在網頁上按住右鍵：計時，時間到就進入截圖模式
+		// 按住右鍵計時，時間到就切換：一般模式在網頁上按住進入截圖模式；截圖模式、放大中在舞台上按住離開
 		// Windows 的右鍵選單在放開時才出現，放開時再擋掉這一次；macOS、Linux 按下就出現選單，選單出現時取消計時
 		_onLongPressStart = e => {
 			this.isMenuSuppressed = false
-			if (e.button !== 2 || this.isCapture || this.frozenShot || this.isBusy || e.composedPath().includes(this.host)) return
+			if (e.button !== 2 || this.isBusy) return
+			const path = e.composedPath()
+			// 一般模式：按在網頁上（工具列、右側欄除外）；截圖模式、放大中：按在舞台上，且沒有在畫圖、拖曳
+			const isIdle = !this.isCapture && !path.includes(this.host)
+			const isEditing = this.isCapture && path.includes(this.$stage[0]) && !this.drawing && !this.adjusting && !this.moving && !this.dragStart
+			if (!isIdle && !isEditing) return
 			this._cancelLongPress()
 			this.longPress = { x: e.clientX, y: e.clientY, timer: setTimeout(() => this._onLongPress(), LONG_PRESS_DELAY) }
 		}
@@ -1172,13 +1288,19 @@
 
 		_onLongPress() {
 			this.longPress = null
-			// 放開右鍵時的選單、以及截圖模式裡「右鍵離開」都不要觸發
+			// 放開右鍵時的選單、以及舞台上的短按右鍵（取消選取）都不要觸發
 			this.isMenuSuppressed = true
-			this.toggleCapture()
-			log('長按右鍵，進入截圖模式')
+			if (this.frozenShot) {
+				this._closeGallery()
+				log('長按右鍵，關閉放大')
+			} else {
+				const isEntering = !this.isCapture
+				this.toggleCapture()
+				log(`長按右鍵，${isEntering ? '進入' : '離開'}截圖模式`)
+			}
 		}
 
-		// 長按右鍵進入截圖模式後，放開時的這一次右鍵選單擋掉
+		// 長按右鍵切換後，放開時的這一次右鍵選單擋掉（掛在 window 的捕獲階段，舞台的 _onContextMenu 也收不到）
 		_onPageContextMenu = e => {
 			// 選單已經出現（macOS、Linux 按下就出現），不再進入截圖模式
 			this._cancelLongPress()
@@ -1311,9 +1433,12 @@
 			if (!source || source.isFullPage) return
 
 			const shot = await this._createShot(source)
+			// 框選的範圍是畫面座標，放大中底圖捲動過時要加回去，才是圖上的位置
+			const left = rect.left + (this.frozenShot ? this.galleryScrollX : 0)
+			const top = rect.top + (this.frozenShot ? this.galleryScrollY : 0)
 			shot.crop = {
-				x: rect.left / shot.viewportWidth,
-				y: rect.top / shot.viewportHeight,
+				x: left / shot.viewportWidth,
+				y: top / shot.viewportHeight,
 				w: rect.width / shot.viewportWidth,
 				h: rect.height / shot.viewportHeight,
 			}
@@ -1369,6 +1494,33 @@
 		}
 
 		// ── 畫圖 ──────────────────────────────────────────
+		// 顏色下拉選單：和說明一樣，按其他地方（_closeHelp）就收起來
+		_toggleColorMenu(button) {
+			const $menu = $(button).siblings('.js-draw-color-menu')
+			const isOpen = $menu.prop('hidden')
+			this._closeHelp()
+			if (!isOpen) return
+			$menu.prop('hidden', false)
+			$(button).attr('aria-expanded', 'true')
+		}
+
+		// 選顏色：改下一筆的顏色並記住；有選取中或打字中的內容時一起改它
+		_setColor(shot, color) {
+			if (!DRAW_COLORS.some(({ value }) => value === color)) return
+			this.color = color
+			const item = shot && (this.editingItem && shot.items.includes(this.editingItem) ? this.editingItem : this._selectedOf(shot))
+			if (item) {
+				item.color = color
+				this._placeItem(item)
+				this._paintInk(shot)
+				this._markChanged(shot)
+			}
+			this._closeHelp()
+			this._syncShots()
+			this._writeStorage({ [COLOR_KEY]: color })
+			log('選擇顏色', { 顏色: DRAW_COLORS.find(({ value }) => value === color).name, 套用到: item ? '選取中的內容與下一筆' : '下一筆' })
+		}
+
 		_setTool(tool) {
 			this.activeTool = tool
 			this.selectedItem = null // 接下來要畫新的，滾輪只改下一筆
@@ -1382,9 +1534,9 @@
 			return { x: Math.round(e.clientX - x), y: Math.round(e.clientY - y) }
 		}
 
-		// 放大時底圖固定不動（整頁截圖例外，跟著放大中的捲動），其他時候跟著網頁捲動
+		// 放大時跟著底圖捲動（圖比畫面高時才捲得動，同一張底圖上的藍框一起移動），其他時候跟著網頁捲動
 		_shotOffset(shot) {
-			if (this.frozenShot) return { x: 0, y: this._isScrollShot(shot) ? -this.galleryScrollY : 0 }
+			if (this.frozenShot) return { x: -this.galleryScrollX, y: -this.galleryScrollY }
 			return { x: shot.scrollX - window.scrollX, y: shot.scrollY - window.scrollY }
 		}
 
@@ -1438,11 +1590,11 @@
 			const id = this.nextItemId++
 			const { x, y } = anchor
 			const item = {
-				pen: { id, type: 'pen', width: this.lineWidth, points: [[x, y]] },
-				line: { id, type: 'line', width: this.lineWidth, x1: x, y1: y, x2: x, y2: y },
-				arrow: { id, type: 'arrow', width: this.lineWidth, x1: x, y1: y, x2: x, y2: y },
-				rect: { id, type: 'rect', width: this.lineWidth, x, y, w: 0, h: 0 },
-				text: { id, type: 'text', size: this.textSize, x, y, w: 0, h: 0, text: '' },
+				pen: { id, type: 'pen', color: this.color, width: this.lineWidth, points: [[x, y]] },
+				line: { id, type: 'line', color: this.color, width: this.lineWidth, x1: x, y1: y, x2: x, y2: y },
+				arrow: { id, type: 'arrow', color: this.color, width: this.lineWidth, x1: x, y1: y, x2: x, y2: y },
+				rect: { id, type: 'rect', color: this.color, width: this.lineWidth, x, y, w: 0, h: 0 },
+				text: { id, type: 'text', color: this.color, size: this.textSize, x, y, w: 0, h: 0, text: '' },
 			}[this.activeTool]
 			shot.items.push(item)
 			this.drawing = { shot, item, anchor }
@@ -1803,6 +1955,7 @@
 
 			this.backdropSource = key
 			this.$backdrop.empty().prop('hidden', !source)
+			this.isDarkBackdrop = source ? this._isDarkBitmap(source.bitmap) : false
 			if (!source) return
 
 			const canvas = document.createElement('canvas')
@@ -1812,6 +1965,22 @@
 			$(canvas).css({ width: source.viewportWidth, height: source.viewportHeight })
 			canvas.getContext('2d').drawImage(source.bitmap, 0, 0)
 			this.$backdrop.append(canvas)
+		}
+
+		// 判斷截圖是否偏暗：縮小取樣後，依人眼感知的權重算每個像素的亮度，暗像素超過一定比例就視為深色
+		// 用比例而不是平均亮度：黑底網站上有大張彩圖或白卡片時，平均值會被拉到中間，判斷會搖擺
+		_isDarkBitmap(bitmap) {
+			const canvas = document.createElement('canvas')
+			canvas.width = canvas.height = DARK_SAMPLE_SIZE
+			const ctx = canvas.getContext('2d', { willReadFrequently: true })
+			ctx.drawImage(bitmap, 0, 0, DARK_SAMPLE_SIZE, DARK_SAMPLE_SIZE)
+			const { data } = ctx.getImageData(0, 0, DARK_SAMPLE_SIZE, DARK_SAMPLE_SIZE)
+			let darkCount = 0
+			for (let i = 0; i < data.length; i += 4) {
+				const luminance = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
+				if (luminance < DARK_LUMINANCE) darkCount++
+			}
+			return darkCount / (DARK_SAMPLE_SIZE * DARK_SAMPLE_SIZE) > DARK_RATIO
 		}
 
 		_paintInk(shot) {
@@ -1827,12 +1996,13 @@
 
 		// 畫面和輸出共用，兩邊才會一致。文字在畫面上是文字框，輸出時才畫上去
 		_paintItems(ctx, shot, isOutput) {
-			ctx.strokeStyle = COLOR_MARK
-			ctx.fillStyle = COLOR_MARK
 			ctx.lineCap = 'round'
 			ctx.lineJoin = 'round'
 
+			// 每筆各自的顏色；舊草稿沒有記顏色的是預設紅色
 			shot.items.forEach(item => {
+				ctx.strokeStyle = item.color ?? COLOR_MARK
+				ctx.fillStyle = item.color ?? COLOR_MARK
 				ctx.lineWidth = item.width ?? LINE_WIDTH
 				if (item.type === 'pen') {
 					const [first, ...rest] = item.points
@@ -1933,25 +2103,47 @@
 		// 整頁截圖的框元素只對齊畫面上看得到的範圍（框的位置用圖上的座標），複製、下載和畫圖工具列才會一直在畫面內
 		_scrollShotBox(shot) {
 			const { clientWidth, clientHeight } = this.$stage[0]
-			return { left: 0, top: this.galleryScrollY, width: Math.min(shot.viewportWidth, clientWidth), height: Math.min(shot.viewportHeight, clientHeight) }
+			return { left: this.galleryScrollX, top: this.galleryScrollY, width: Math.min(shot.viewportWidth, clientWidth), height: Math.min(shot.viewportHeight, clientHeight) }
 		}
 
-		_scrollGallery(delta) {
+		// 放大中的底圖比畫面高或寬才捲得動；整頁截圖，或在較大的視窗（例如 F11 全螢幕）截的區塊都適用
+		_scrollGallery(dx, dy) {
 			const shot = this.frozenShot
-			if (!shot?.isFullPage || this.drawing || this.adjusting || this.moving) return
+			if (!shot || this.drawing || this.adjusting || this.moving || this.dragStart) return
 
-			const max = Math.max(0, shot.viewportHeight - this.$stage[0].clientHeight)
-			const next = Math.min(Math.max(this.galleryScrollY + delta, 0), max)
-			if (next === this.galleryScrollY) return
-			this.galleryScrollY = next
+			const nextX = this._clampGalleryScroll(this.galleryScrollX + dx, 'x')
+			const nextY = this._clampGalleryScroll(this.galleryScrollY + dy, 'y')
+			if (nextX === this.galleryScrollX && nextY === this.galleryScrollY) return
+			this.galleryScrollX = nextX
+			this.galleryScrollY = nextY
 			this._syncShots()
+		}
+
+		// axis：'x' 左右、'y' 上下；底圖沒有超出畫面時固定為 0
+		_clampGalleryScroll(value, axis) {
+			const { clientWidth, clientHeight } = this.$stage[0]
+			const size = axis === 'x' ? (this.frozenShot?.viewportWidth ?? 0) - clientWidth : (this.frozenShot?.viewportHeight ?? 0) - clientHeight
+			return Math.min(Math.max(value, 0), Math.max(0, size))
+		}
+
+		// 放大中的底圖比畫面高
+		_isGalleryTall() {
+			return Boolean(this.frozenShot) && this.frozenShot.viewportHeight > this.$stage[0].clientHeight
+		}
+
+		// 放大中的底圖比畫面高或寬，畫的內容和控制點會捲到畫面外
+		_isGalleryOversize() {
+			return this._isGalleryTall() || (Boolean(this.frozenShot) && this.frozenShot.viewportWidth > this.$stage[0].clientWidth)
 		}
 
 		// 框貼齊視窗邊緣時，刪除鈕和工具列超出去就按不到了，要改放框內
 		_syncCropLayout($box, shot) {
 			const { clientWidth, clientHeight } = this.$stage[0]
 			// 整頁截圖的框元素就是畫面範圍，工具列一律放框內
-			const { left, top, right, bottom } = this._isScrollShot(shot) ? { left: 0, top: 0, right: clientWidth, bottom: clientHeight } : this._cropRect(shot)
+			// 其他藍框換算成畫面位置（放大中底圖捲動過要扣掉）
+			const { x, y } = this._shotOffset(shot)
+			const rect = this._cropRect(shot)
+			const { left, top, right, bottom } = this._isScrollShot(shot) ? { left: 0, top: 0, right: clientWidth, bottom: clientHeight } : { left: rect.left + x, top: rect.top + y, right: rect.right + x, bottom: rect.bottom + y }
 			$box.toggleClass('is_tools_inside', right > clientWidth - TOOLS_WIDTH)
 			$box.toggleClass('is_remove_inside', top < REMOVE_OFFSET || right > clientWidth - REMOVE_OFFSET)
 			$box.toggleClass('is_draw_inside', bottom > clientHeight - DRAW_BAR_HEIGHT)
@@ -1984,8 +2176,8 @@
 		// 只改位置，不重建元素：拖曳中的點和輸入中的文字框都不能被換掉
 		_placeControls($item, item) {
 			const { clientWidth, clientHeight } = this.$stage[0]
-			// 貼齊視窗邊緣時，控制點超出去就按不到了；整頁截圖會捲動，座標不是畫面位置，不限制
-			const isFree = Boolean(this.frozenShot?.isFullPage)
+			// 貼齊視窗邊緣時，控制點超出去就按不到了；放大中的圖比畫面高會捲動，座標不是畫面位置，不限制
+			const isFree = Boolean(this.frozenShot?.isFullPage) || this._isGalleryOversize()
 			const clamp = (value, max) => isFree ? value : Math.min(Math.max(value, CONTROL_MARGIN), max - CONTROL_MARGIN)
 			const place = (selector, x, y) => $item.find(selector).css({ left: clamp(x, clientWidth), top: clamp(y, clientHeight) })
 
@@ -1998,13 +2190,19 @@
 			place('[data-part="move"]', item.x, item.y)
 			place('[data-part="resize"]', item.x + item.w, item.y + item.h)
 			place('.js-item-remove', item.x + item.w, item.y)
-			$item.find('.js-item-text').css({ left: item.x, top: item.y, width: item.w, height: item.h, fontSize: item.size ?? TEXT_SIZE, lineHeight: `${this._textLineHeight(item)}px` })
+			$item.find('.js-item-text').css({ left: item.x, top: item.y, width: item.w, height: item.h, fontSize: item.size ?? TEXT_SIZE, lineHeight: `${this._textLineHeight(item)}px`, color: item.color ?? COLOR_MARK })
 		}
 
 		// 藍框和畫的內容跟著網頁捲動
 		_syncShots() {
-			// 底圖跟著放大中的整頁截圖捲動
-			this.$backdrop[0].style.transform = this._isScrollShot(this.frozenShot) ? `translateY(${-this.galleryScrollY}px)` : ''
+			// 底圖跟著放大中的捲動；視窗變高時，捲過頭的距離收回來
+			// 關閉放大後捲動距離不會歸零，截圖模式的凍結畫面不能跟著位移
+			if (this.frozenShot) {
+				this.galleryScrollX = this._clampGalleryScroll(this.galleryScrollX, 'x')
+				this.galleryScrollY = this._clampGalleryScroll(this.galleryScrollY, 'y')
+			}
+			const isScrolled = this.frozenShot && (this.galleryScrollX || this.galleryScrollY)
+			this.$backdrop[0].style.transform = isScrolled ? `translate(${-this.galleryScrollX}px, ${-this.galleryScrollY}px)` : ''
 			this.$marks.children('.js-shot').each((_, el) => {
 				const shot = $(el).data('shot')
 				const offset = this._shotOffset(shot)
@@ -2023,13 +2221,17 @@
 				const selected = this._selectedOf(shot)
 				$(el).find('.js-item').each((_, item) => $(item).toggleClass('is_selected', $(item).data('id') === selected?.id))
 				$box.find('.js-draw-size').text(`${selected ? selected.width ?? LINE_WIDTH : this.activeTool === 'text' ? this.textSize : this.lineWidth}px`)
+				// 顏色鈕顯示選取中內容的顏色，沒有選取時是下一筆的顏色
+				const color = selected ? selected.color ?? COLOR_MARK : this.color
+				$box.find('.js-draw-color-swatch').css('--swatch', color)
+				$box.find('.js-draw-color-option').each((_, option) => $(option).attr('aria-selected', String(option.dataset.color === color)))
 			})
 			this._paintDim()
 			// 換工具、換粗細、取消選取時，紅點跟著更新
 			this._syncBrush()
 		}
 
-		// 凍結底圖上的黑底：整片塗暗，再挖空畫面上每個藍框和框選中的範圍；沒有凍結底圖（一般模式）時不顯示
+		// 凍結底圖上的遮罩（偏暗的底圖改用白霧）：整片塗上，再挖空畫面上每個藍框和框選中的範圍；沒有凍結底圖（一般模式）時不顯示
 		// 移動藍框、框選時每次 pointermove 都會重畫，只有填色和清除，成本很低
 		_paintDim() {
 			const isOn = !this.$backdrop.prop('hidden')
@@ -2045,7 +2247,7 @@
 			const ctx = canvas.getContext('2d')
 			ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
 			ctx.clearRect(0, 0, width, height)
-			ctx.fillStyle = COLOR_DIM
+			ctx.fillStyle = this.isDarkBackdrop ? COLOR_DIM_LIGHT : COLOR_DIM
 			ctx.fillRect(0, 0, width, height)
 			// 只挖空實際畫在畫面上的藍框
 			this.$marks.children('.js-shot').each((_, el) => {
@@ -2060,19 +2262,33 @@
 			}
 		}
 
-		// 拖曳右側欄左邊界調整寬度；放開時存進草稿，換頁接回時沿用
+		// 拖曳右側欄左或右邊界調整寬度，另一側固定不動；放開時存進草稿，換頁接回時沿用
 		_startPanelResize(e) {
 			if (e.button !== 0) return
 			e.preventDefault()
 			const handle = e.currentTarget
+			const isRight = handle.dataset.edge === 'right'
 			handle.setPointerCapture(e.pointerId)
+			$(handle).addClass('is_active')
 			this.$editor.addClass('is_panel_resizing')
+			const { left, right } = this.$panel[0].getBoundingClientRect()
 
-			const onMove = moveEvent => this._setPanelWidth(window.innerWidth - moveEvent.clientX)
+			const onMove = moveEvent => {
+				if (isRight) {
+					// 左邊固定；拉回視窗右緣時又會貼齊右側
+					this._setPanelWidth(moveEvent.clientX - left, { maxWidth: window.innerWidth - left })
+					this._setPanelLeft(left)
+				} else {
+					// 右邊固定；貼齊右側時不用記位置
+					this._setPanelWidth(right - moveEvent.clientX, { maxWidth: right })
+					if (this.panelLeft !== null) this._setPanelLeft(right - this.panelWidth)
+				}
+			}
 			const onUp = () => {
 				handle.removeEventListener('pointermove', onMove)
 				handle.removeEventListener('pointerup', onUp)
 				handle.removeEventListener('pointercancel', onUp)
+				$(handle).removeClass('is_active')
 				this.$editor.removeClass('is_panel_resizing')
 				this._saveDraft()
 				log('調整截圖清單寬度', { 寬度: this.panelWidth })
@@ -2092,25 +2308,41 @@
 			if (isSave) this._saveDraft()
 		}
 
-		_setPanelWidth(width) {
-			const max = Math.min(PANEL_MAX_WIDTH, window.innerWidth - PANEL_PAGE_GAP)
+		// maxWidth：拖曳邊界時，另一側固定不動，寬度不能超出視窗
+		_setPanelWidth(width, { maxWidth = Infinity } = {}) {
+			const max = Math.min(PANEL_MAX_WIDTH, window.innerWidth - PANEL_PAGE_GAP, maxWidth)
 			this.panelWidth = Math.round(Math.min(Math.max(width, PANEL_MIN_WIDTH), Math.max(max, PANEL_MIN_WIDTH)))
 			this.$panel.css('--panel-width', `${this.panelWidth}px`)
+		}
+
+		// 右側欄的左右位置：限制在視窗內；碰到視窗右緣就貼齊右側（panelLeft 為 null），視窗大小改變時仍靠右
+		_setPanelLeft(left) {
+			const max = window.innerWidth - this.panelWidth
+			this.panelLeft = left === null || left >= max ? null : Math.round(Math.max(0, left))
+			this.$panel.toggleClass('is_floating', this.panelLeft !== null).css('--panel-left', this.panelLeft === null ? '' : `${this.panelLeft}px`)
 		}
 
 		_isPanelOpen() {
 			return !this.$panel.prop('hidden')
 		}
 
-		_togglePanel() {
-			this._isPanelOpen() ? this._closePanel() : this._openPanel()
+		// 按鈕展開截圖清單時離開截圖模式（放大中不離開，維持放大編輯）
+		async _togglePanel() {
+			if (this._isPanelOpen()) {
+				this._closePanel()
+				return
+			}
+			if (this.isCapture && !this.frozenShot) await this.toggleCapture()
+			this._openPanel()
 		}
 
-		// 右側欄不擋操作，開著也能繼續框選，圖片即時同步
-		// 工具列移進右側欄最上方；先記下拖曳到的位置再清掉，收合時放回原處
+		// 工具列移進右側欄最上方；先記下拖曳到的位置再清掉，收合時沿用高度
+		// 左右位置和工具列同步：工具列拖曳過時，右側欄的左邊對齊工具列；放不下就貼齊視窗右側，不超出邊界
+		// 工具列沒拖曳過（預設右上角）時維持右側欄自己的位置（例如草稿記下的位置）
 		_openPanel() {
 			const toolbar = this.$toolbar[0]
 			this.toolbarPos = this.$toolbar.hasClass('is_moved') ? { left: toolbar.offsetLeft, top: toolbar.offsetTop } : null
+			if (this.toolbarPos) this._setPanelLeft(this.toolbarPos.left)
 			this.$toolbar.removeClass('is_moved').css({ left: '', top: '' })
 			this.$panel.prepend(this.$toolbar).prop('hidden', false)
 			this.$panelEdge.prop('hidden', true)
@@ -2370,7 +2602,8 @@
 			this.frozenShot = null
 			this.focusedShot = null
 			this.$gallery.prop('hidden', true)
-			this.$editor.removeClass('is_gallery')
+			// 下次放大時工具列要回來
+			this.$editor.removeClass('is_gallery is_gallery_hidden')
 			if (this.isGalleryFromIdle) {
 				this.toggleCapture()
 			} else {
@@ -2390,12 +2623,33 @@
 		_showGalleryShot(index) {
 			this.galleryIndex = index
 			const shot = this.shots[index]
-			if (shot !== this.frozenShot) this.galleryScrollY = 0
+			// 換到另一張底圖時回到左上角；同一張底圖的其他藍框維持目前的捲動
+			const isSameScreen = this.frozenShot && this._screenIdOf(this.frozenShot) === this._screenIdOf(shot)
+			if (!isSameScreen) {
+				this.galleryScrollX = 0
+				this.galleryScrollY = 0
+			}
 			this.frozenShot = shot
+			this._scrollToCrop(shot)
 			// 進入時不選取藍框，目前這張以外框標出（is_current）；點藍框才開始編輯
 			this.focusedShot = null
 			shot.z = this.nextZ++
 			this._syncGalleryNav()
+		}
+
+		// 區塊截圖的藍框在畫面外時，捲到框的起點（留一點邊），整個框放得下就讓終點也在畫面內；上下、左右各自計算
+		_scrollToCrop(shot) {
+			if (shot.isFullPage || !shot.crop) return
+			const { clientWidth, clientHeight } = this.$stage[0]
+			const { left, top, right, bottom } = this._cropRect(shot)
+			const margin = GALLERY_SCROLL_STEP / 2
+			const fit = (scroll, start, end, view) => {
+				if (start < scroll + margin) return start - margin
+				if (end > scroll + view - margin) return Math.min(end - view + margin, start - margin)
+				return scroll
+			}
+			this.galleryScrollX = this._clampGalleryScroll(fit(this.galleryScrollX, left, right, clientWidth), 'x')
+			this.galleryScrollY = this._clampGalleryScroll(fit(this.galleryScrollY, top, bottom, clientHeight), 'y')
 		}
 
 		// 放大中新增或移除藍框，總張數會變
@@ -2409,10 +2663,14 @@
 		_closePanel() {
 			this.$panel.prop('hidden', true)
 			this.$toolbar.insertAfter(this.$panel)
-			// 回到展開前的位置；視窗可能變小過，仍限制在視窗內
-			if (this.toolbarPos) {
+			// 左右位置和右側欄同步：右側欄拖曳過時，工具列的左邊對齊右側欄；貼齊右側時工具列也靠右
+			// 高度沿用展開前的位置；工具列沒拖曳過、右側欄也貼齊右側時，回到預設的右上角
+			// _placeToolbar 會限制在視窗內
+			if (this.panelLeft !== null || this.toolbarPos) {
+				const toolbar = this.$toolbar[0]
+				const left = this.panelLeft ?? this.$editor[0].clientWidth - toolbar.offsetWidth - TOOLBAR_MARGIN
 				this.$toolbar.addClass('is_moved')
-				this._placeToolbar(this.toolbarPos.left, this.toolbarPos.top)
+				this._placeToolbar(left, this.toolbarPos?.top ?? TOOLBAR_MARGIN)
 			}
 			this.$panelEdge.prop('hidden', false)
 			this.$toggle.attr('aria-expanded', 'false')
@@ -2482,7 +2740,15 @@
 			if (this.draftLoading) await this.draftLoading
 			if (!this.isDraftLoaded || this.isTakenOver) return
 			const shots = this.shots.map(({ bitmap, dataUrl, isDetached, isFromDraft, ...shot }) => shot)
-			await this._writeStorage({ [DRAFT_KEY]: { editorId: this.editorId, shots, isPanelOpen: this._isPanelOpen(), panelWidth: this.panelWidth, panelCols: this.panelCols } })
+			await this._writeStorage({ [DRAFT_KEY]: { editorId: this.editorId, shots, isPanelOpen: this._isPanelOpen(), panelWidth: this.panelWidth, panelLeft: this.panelLeft, toolbarPos: this._currentToolbarPos(), panelCols: this.panelCols } })
+		}
+
+		// 工具列拖曳過的位置 { left, top }；在右側欄裡時是展開前的位置；沒拖曳過是 null（預設右上角）
+		_currentToolbarPos() {
+			if (this._isPanelOpen()) return this.toolbarPos
+			if (!this.$toolbar.hasClass('is_moved')) return null
+			const toolbar = this.$toolbar[0]
+			return { left: toolbar.offsetLeft, top: toolbar.offsetTop }
 		}
 
 		async _saveImage(shot) {
@@ -2519,12 +2785,28 @@
 			log('已清除沒有被引用的舊圖片', { 張數: orphans.length })
 		}
 
+		// 換頁接回時放回換頁前的位置；右側欄要展開時，工具列位置先記著，等展開後交給 init 放進 toolbarPos
+		_restorePosition(draft) {
+			if (Number.isFinite(draft?.panelLeft)) this._setPanelLeft(draft.panelLeft)
+			const pos = draft?.toolbarPos
+			if (!Number.isFinite(pos?.left) || !Number.isFinite(pos?.top)) return
+			if (this.shouldOpenPanel) {
+				this.resumeToolbarPos = pos
+				return
+			}
+			this.$toolbar.addClass('is_moved')
+			this._placeToolbar(pos.left, pos.top)
+		}
+
 		// 讀草稿的文字資料並套用設定；編號先接續草稿，載入圖片前新增的內容才不會和草稿重複
 		async _readDraft() {
-			const stored = await chrome.storage.local.get(DRAFT_KEY)
+			const stored = await chrome.storage.local.get([DRAFT_KEY, COLOR_KEY])
 			const draft = stored[DRAFT_KEY]
+			if (DRAW_COLORS.some(({ value }) => value === stored[COLOR_KEY])) this.color = stored[COLOR_KEY]
 			this.shouldOpenPanel = this.isResume && Boolean(draft?.isPanelOpen)
 			if (draft?.panelWidth) this._setPanelWidth(draft.panelWidth)
+			// 工具列和右側欄的位置只在同一分頁換頁接回時沿用；結束後重新開啟時都回到預設的右側
+			if (this.isResume) this._restorePosition(draft)
 			this._setPanelCols(draft?.panelCols ?? this.panelCols, { isSave: false })
 			const shots = draft?.shots || []
 			const items = shots.flatMap(shot => shot.items || [])

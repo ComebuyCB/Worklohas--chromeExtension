@@ -1,7 +1,7 @@
 /* 此檔由 screenshot.js 載入至 Shadow DOM，不會影響網站樣式 */
 /* 網頁的 CSS 優先權高於 :host，一般寫法擋不住 div { line-height: 2 } 這類規則，所以全部加上 !important */
 :host {
-  --mark: #e11d2e;
+  --mark: #e11d2e; /* 預設畫筆顏色和刪除、數量等警示色；畫的內容各自的顏色由 JS 寫入 */
   --primary: #0d6efd;
   --dark: #1e293b;
   --gray-cb: #cbd5e1;
@@ -29,7 +29,7 @@
 .screenshot_backdrop { position: absolute; top: 0; left: 0; }
 .screenshot_backdrop[hidden] { display: none; }
 .screenshot_backdrop > canvas { display: block; }
-/* 底圖上的半透明黑底：由 JS 整片塗暗，再挖空每個藍框和框選中的範圍，不論有沒有 focus，藍框內都是清楚的 */
+/* 底圖上的半透明遮罩（底圖偏暗時改用白霧）：由 JS 整片塗上，再挖空每個藍框和框選中的範圍，不論有沒有 focus，藍框內都是清楚的 */
 .screenshot_dim { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .screenshot_dim[hidden] { display: none; }
 
@@ -140,12 +140,28 @@
 .screenshot_crop.is_tools_inside.is_draw_inside > .screenshot_tools { bottom: 46px; }
 
 /* 畫圖工具：放在藍框下方，寬高要等於 screenshot.js 的 DRAW_BAR_ 常數 */
-.screenshot_draw { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; overflow: hidden; box-shadow: var(--edge); pointer-events: auto; }
+/* 不能 overflow: hidden，顏色下拉選單要能超出工具列 */
+.screenshot_draw { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; box-shadow: var(--edge); pointer-events: auto; }
 .screenshot_editor.is_capture .screenshot_crop.is_tools > .screenshot_draw { display: flex; }
-.screenshot_draw > ._tool { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: var(--dark); border: 0; color: #fff; cursor: pointer; }
-.screenshot_draw > ._tool:hover { background: #475569; }
+.screenshot_draw > ._tool,
+.screenshot_draw > ._color > ._tool { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: var(--dark); border: 0; color: #fff; cursor: pointer; }
+.screenshot_draw > ._tool:hover,
+.screenshot_draw > ._color > ._tool:hover { background: #475569; }
 .screenshot_draw > ._tool.is_active,
-.screenshot_draw > ._tool[aria-expanded="true"] { background: var(--primary); }
+.screenshot_draw > ._tool[aria-expanded="true"],
+.screenshot_draw > ._color > ._tool[aria-expanded="true"] { background: var(--primary); }
+/* 顏色鈕：圓形色塊顯示目前顏色（JS 寫入 --swatch），白邊在深色、深底上都看得到 */
+.screenshot_draw > ._color { position: relative; display: flex; }
+.screenshot_draw > ._color > ._tool > ._swatch { width: 16px; height: 16px; background: var(--swatch, var(--mark)); border: 2px solid #fff; border-radius: 50%; }
+/* 顏色下拉選單：4 欄 × 3 列色塊，每欄一個色系、由上到下淺到深（依 DRAW_COLORS 順序直向排）；同色系上下靠近，色系之間左右留寬
+   選中的外圈主色；工具列放進框內下方時改往上開，靠右對齊時選單也靠右，不超出畫面 */
+.screenshot_colorMenu { z-index: 2; position: absolute; top: calc(100% + 4px); left: 0; display: grid; grid-auto-flow: column; grid-template-rows: repeat(3, 28px); gap: 4px 12px; padding: 10px; background: var(--dark); border-radius: 8px; box-shadow: var(--edge), 0 6px 16px rgba(0, 0, 0, .35); }
+.screenshot_colorMenu[hidden] { display: none; }
+.screenshot_crop.is_draw_inside > .screenshot_draw > ._color > .screenshot_colorMenu { top: auto; bottom: calc(100% + 4px); }
+.screenshot_crop.is_draw_end > .screenshot_draw > ._color > .screenshot_colorMenu { right: 0; left: auto; }
+.screenshot_colorMenu > ._option { width: 28px; height: 28px; padding: 0; background: var(--swatch); border: 2px solid rgba(255, 255, 255, .6); border-radius: 50%; cursor: pointer; transition: transform .1s ease; }
+.screenshot_colorMenu > ._option:hover { transform: scale(1.12); }
+.screenshot_colorMenu > ._option[aria-selected="true"] { border-color: #fff; box-shadow: 0 0 0 2px var(--primary); }
 .screenshot_draw > ._size { display: flex; align-items: center; justify-content: center; width: 48px; background: var(--dark); color: var(--gray-cb); font-size: 12px; }
 /* 下方放不下時改放框內，右方放不下時靠右對齊 */
 .screenshot_crop.is_draw_inside > .screenshot_draw { top: auto; bottom: 2px; left: 2px; margin-top: 0; }
@@ -220,23 +236,44 @@
 .screenshot_toolbar--head > .screenshot_iconBtn.is_withText { width: auto; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 700; }
 .screenshot_toolbar--head > .screenshot_iconBtn > ._count { top: -4px; right: -4px; }
 
-/* 展開截圖清單時：同樣兩層，放在右側欄最上方當標題列，不能拖曳；z-index 讓說明蓋過下方的圖片 */
+/* 展開截圖清單時：同樣兩層，放在右側欄最上方當標題列，按住第一層可左右拖曳整個右側欄；z-index 讓說明蓋過下方的圖片 */
 .screenshot_panel > .screenshot_toolbar { z-index: 1; position: relative; top: auto; right: auto; left: auto; flex-shrink: 0; width: auto; box-shadow: none; }
 
 /* 工具列的說明：位置由 JS 依 (?) 算出（--help-x、--help-top、--help-bottom），在按鈕正下方置中，下方放不下改往上；--help-shift 避免左右超出視窗。其他說明沒設這些變數時，在外層下方置中 */
-.screenshot_help { position: absolute; top: var(--help-top, calc(100% + 8px)); left: var(--help-x, 50%); width: 280px; max-height: var(--help-max, none); padding: 12px 14px; overflow-y: auto; overscroll-behavior: contain; background: #fff; border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); color: #222; font-size: 13px; font-weight: 400; line-height: 20px; text-align: left; transform: translateX(calc(-50% + var(--help-shift, 0px))); white-space: normal; user-select: text; }
+.screenshot_help { position: absolute; top: var(--help-top, calc(100% + 8px)); left: var(--help-x, 50%); width: 340px; max-height: var(--help-max, none); overflow-y: auto; overscroll-behavior: contain; background: #fff; border-radius: 10px; box-shadow: 0 0 0 1px rgba(15, 23, 42, .08), 0 14px 36px rgba(15, 23, 42, .32); color: #222; font-size: 14px; font-weight: 400; line-height: 22px; text-align: left; transform: translateX(calc(-50% + var(--help-shift, 0px))); white-space: normal; user-select: text; }
 .screenshot_help[hidden] { display: none; }
 .screenshot_help.is_up { top: auto; bottom: var(--help-bottom, calc(100% + 8px)); }
+/* 小視窗的標題列：極淡的灰藍底加下方分隔線，和白色內容區分但不搶眼；內容超過高度捲動時固定在上方 */
+.screenshot_help--head { z-index: 1; position: sticky; top: 0; display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: var(--dark); font-size: 16px; font-weight: 700; }
+.screenshot_help--head > svg { flex-shrink: 0; width: 18px; height: 18px; color: var(--primary); }
 /* 畫圖工具列的說明放在外層，left、top 由 JS 依按鈕算出；z-index 高過放大時的舞台 */
 .screenshot_drawHelp { z-index: 3; top: 0; left: 0; transform: none; pointer-events: auto; }
 
-/* 操作說明表格：每組一個 tbody，組標題跨兩欄；網頁是 quirks mode 時表格不繼承字級，要明確指定 */
-.screenshot_helpTable { width: 100%; border-collapse: collapse; font: inherit; margin-top: -4px; }
-.screenshot_helpTable > tbody > tr > th,
-.screenshot_helpTable > tbody > tr > td { padding: 3px 0; text-align: left; vertical-align: top; }
-.screenshot_helpTable > tbody > tr > th { padding-right: 12px; font-weight: 700; white-space: nowrap; }
-.screenshot_helpTable > tbody > tr > td { color: #475569; }
-.screenshot_helpTable > tbody > tr > th._group { padding: 10px 0 4px; border-bottom: 1px solid #e2e8f0; color: var(--primary); font-size: 12px; }
+/* 說明內容：每組一個 section，組與組之間有分隔線 */
+.screenshot_help--body { padding: 4px 0 8px; }
+.screenshot_helpGroup + .screenshot_helpGroup { margin-top: 4px; border-top: 1px solid #e2e8f0; }
+/* 組標題：依文字寬度的一小塊灰底標籤 */
+.screenshot_helpGroup > ._title { width: fit-content; margin: 12px 14px 4px; padding: 3px 10px; background: #e2e8f0; border-radius: 6px; color: var(--dark); font-size: 14px; font-weight: 700; line-height: 1.4; letter-spacing: .04em; }
+.screenshot_helpList { margin: 0; }
+/* 每列：說明在左佔滿，按鍵在右靠齊；HTML 維持 dt（按鍵）在前、dd（說明）在後的語意順序，畫面順序用 order 對調 */
+.screenshot_helpRow { display: flex; align-items: center; gap: 12px; padding: 7px 14px; }
+.screenshot_helpRow + .screenshot_helpRow { border-top: 1px solid #f1f5f9; }
+.screenshot_helpRow:hover { background: #f8fafc; }
+.screenshot_helpRow > ._desc { flex: 1; min-width: 0; margin: 0; color: #334155; font-size: 14px; }
+
+/* 按鍵欄：滑鼠圖示、鍵帽和中間的 +、/、~ 排成一列並垂直置中，靠右對齊；分隔符號淡色 */
+.screenshot_helpKey { display: flex; flex-shrink: 0; order: 1; justify-content: flex-end; align-items: center; gap: 4px; margin: 0; color: #94a3b8; font-size: 12px; font-weight: 700; white-space: nowrap; }
+/* 鍵帽：淺色漸層加下緣陰影，看起來像實體按鍵；網頁是 quirks mode 時不繼承字型，要明確指定 */
+.screenshot_kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; margin-bottom: 2px; padding: 0 8px; background: linear-gradient(#fff, #f1f5f9); border: 1px solid var(--gray-cb); border-radius: 6px; box-shadow: 0 2px 0 var(--gray-cb); color: var(--dark); font: inherit; font-size: 13px; font-weight: 700; line-height: 1; }
+/* 滑鼠圖示：按的那顆鍵用主色；文字「左鍵」等只給螢幕閱讀器，畫面上看圖示 */
+.screenshot_mouseKey { display: inline-flex; position: relative; align-items: center; gap: 3px; color: #475569; }
+.screenshot_mouseKey > svg { flex-shrink: 0; }
+.screenshot_mouseKey > svg ._on { fill: var(--primary); stroke: var(--primary); }
+.screenshot_mouseKey > ._label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* 雙擊、長按：淡藍底的小標籤 */
+.screenshot_mouseKey > ._action { min-width: 42px; padding: 2px 8px; background: #eff6ff; border-radius: 10px; color: var(--primary); font-size: 12px; font-weight: 700; line-height: 16px; text-align: center; }
+/* 沒有雙擊、長按時保留同樣寬度的空位，各列的滑鼠圖示才會對齊 */
+.screenshot_mouseKey > ._action:empty { visibility: hidden; }
 /* 框選、畫圖時隱藏工具列；截圖清單展開時工具列在清單內，整個右側欄一起隱藏 */
 .screenshot_editor.is_drawing > .screenshot_toolbar,
 .screenshot_editor.is_drawing > .screenshot_panel { opacity: 0; pointer-events: none; }
@@ -263,12 +300,17 @@
 /* isolation：裡面工具列的 z-index 只在右側欄內比較，放大時仍被舞台蓋住 */
 .screenshot_panel { position: absolute; top: 0; right: 0; bottom: 0; isolation: isolate; display: flex; flex-direction: column; width: min(var(--panel-width, 400px), 100%); background: rgba(255, 255, 255, .95); box-shadow: -6px 0 24px rgba(0, 0, 0, .3); pointer-events: auto; transition: background-color .15s ease, opacity .15s; }
 .screenshot_panel:hover { background: #fff; }
-/* 左邊界拖曳把手：和 projects.worklohas.com 的 wl-resizeHandle 一樣，8px 寬、滑過時顯示顏色 */
-.screenshot_panel_resize { z-index: 3; position: absolute; top: 0; bottom: 0; left: -4px; width: 8px; cursor: ew-resize; touch-action: none; transition: background-color .15s ease; }
+/* 拖曳標題列移動過：改用 left 定位（JS 寫入 --panel-left），陰影改成兩側都有 */
+.screenshot_panel.is_floating { right: auto; left: var(--panel-left, 0); box-shadow: 0 0 24px rgba(0, 0, 0, .3); }
+/* 左右邊界拖曳把手：和 projects.worklohas.com 的 wl-resizeHandle 一樣，8px 寬、滑過時顯示顏色 */
+.screenshot_panel_resize { z-index: 3; position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; transition: background-color .15s ease; }
+.screenshot_panel_resize[data-edge="left"] { left: -4px; }
+.screenshot_panel_resize[data-edge="right"] { right: -4px; }
 .screenshot_panel_resize:hover,
-.screenshot_editor.is_panel_resizing .screenshot_panel_resize { background: rgba(13, 110, 253, .45); }
+.screenshot_panel_resize.is_active { background: rgba(13, 110, 253, .45); }
 /* 拖曳中不選取文字；游標由 setPointerCapture 維持在把手上 */
-.screenshot_editor.is_panel_resizing { user-select: none; }
+.screenshot_editor.is_panel_resizing,
+.screenshot_editor.is_panel_dragging { user-select: none; }
 .screenshot_panel[hidden] { display: none; }
 .screenshot_panel--head { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
 /* 只捲動這一區，標題列和工具列固定在上方；留白要夠，選取框的外光才不會被裁掉；淺灰底讓白色卡片一張張分開 */
@@ -362,22 +404,23 @@
 /* 放大：舞台蓋住工具列和右側欄，底圖之外的地方是深色 */
 .screenshot_editor.is_gallery > .screenshot_editor--stage { z-index: 1; background: var(--dark); }
 /* 放大的工具列：像一般圖片瀏覽，外層不佔位置也沒有底色，左上頁數、右上說明／關閉、左右兩側上下頁 */
-.screenshot_gallery { --gallery-glass: rgba(55, 65, 81, .55); --gallery-hover: rgba(75, 85, 99, .9); z-index: 2; position: absolute; inset: 0; color: #fff; pointer-events: none; transition: opacity .15s, visibility .15s; }
+.screenshot_gallery { --gallery-glass: rgba(30, 41, 59, .88); --gallery-hover: #475569; z-index: 2; position: absolute; inset: 0; color: #fff; pointer-events: none; transition: opacity .15s, visibility .15s; }
 .screenshot_gallery[hidden] { display: none; }
-/* 畫圖、拖曳中，或選取藍框編輯時淡出；visibility 讓裡面的按鈕也不接收滑鼠 */
+/* 畫圖、拖曳中，選取藍框編輯時，或沒選取時按右鍵隱藏（is_gallery_hidden，按左鍵後恢復）都淡出；visibility 讓裡面的按鈕也不接收滑鼠 */
 .screenshot_editor.is_drawing > .screenshot_gallery,
-.screenshot_editor.is_gallery_focus > .screenshot_gallery { opacity: 0; visibility: hidden; }
+.screenshot_editor.is_gallery_focus > .screenshot_gallery,
+.screenshot_editor.is_gallery_hidden > .screenshot_gallery { opacity: 0; visibility: hidden; }
 .screenshot_gallery > ._count,
 .screenshot_gallery > ._nav,
 .screenshot_gallery > ._actions { position: absolute; pointer-events: auto; }
-/* 頁數：沒有底色，文字陰影讓它在任何圖上都看得清楚 */
-.screenshot_gallery > ._count { top: 8px; left: 8px; padding: 6px 4px; font-size: 14px; font-weight: 700; line-height: 20px; text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 0 6px rgba(0, 0, 0, .6); white-space: nowrap; }
-/* 上下頁：半透明灰底圓形 */
+/* 頁數：和右上按鈕群同樣的深色底，在任何圖上都看得清楚 */
+.screenshot_gallery > ._count { top: 8px; left: 8px; padding: 10px 14px; background: var(--gallery-glass); border-radius: 8px; font-size: 14px; font-weight: 700; line-height: 20px; white-space: nowrap; }
+/* 上下頁：深色底圓形（接近不透明，在任何圖上都看得清楚） */
 .screenshot_gallery > ._nav { top: 50%; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0 0 4px; background: var(--gallery-glass); border: 0; border-radius: 50%; color: #fff; font-size: 30px; line-height: 1; transform: translateY(-50%); cursor: pointer; }
 .screenshot_gallery > ._nav_prev { left: 8px; }
 .screenshot_gallery > ._nav_next { right: 8px; }
 .screenshot_gallery > ._nav[hidden] { display: none; }
-/* 右上按鈕群：同一塊半透明灰底，按鈕本身不加底色 */
+/* 右上按鈕群：同一塊深色底，按鈕本身不加底色 */
 .screenshot_gallery > ._actions { top: 8px; right: 8px; display: flex; gap: 2px; padding: 4px; background: var(--gallery-glass); border-radius: 8px; }
 .screenshot_gallery ._tool { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: none; border: 0; border-radius: 6px; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
 .screenshot_gallery ._tool > svg { width: 18px; height: 18px; }
